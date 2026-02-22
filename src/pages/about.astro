@@ -1,18 +1,39 @@
 ---
 
-import { getEntry, render } from "astro:content";
+import { render } from "astro:content";
 import Markdown from "@components/misc/Markdown.astro";
 import I18nKey from "../i18n/i18nKey";
 import { i18n } from "../i18n/translation";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
+import { siteConfig } from "../config";
+import { getPostVariantLanguageKey } from "../utils/post-variant-utils";
+import { getSpecVariantGroupByCanonicalId } from "../utils/spec-content-utils";
 
-const aboutPost = await getEntry("spec", "about");
+const aboutGroup = await getSpecVariantGroupByCanonicalId("about");
 
-if (!aboutPost) {
+if (!aboutGroup) {
 	throw new Error("About page content not found");
 }
 
-const { Content } = await render(aboutPost);
+const renderedVariants = await Promise.all(
+	aboutGroup.variants.map(async (variantEntry) => {
+		const rendered = await render(variantEntry);
+		return {
+			entry: variantEntry,
+			Content: rendered.Content,
+			langKey: getPostVariantLanguageKey(variantEntry),
+		};
+	}),
+);
+
+const activeVariant =
+	renderedVariants.find((variant) => variant.entry.id === aboutGroup.defaultEntry.id) ||
+	renderedVariants[0];
+const enableBrowserLanguageContentSwitch = renderedVariants.length > 1;
+const visibleVariantBlocks = enableBrowserLanguageContentSwitch
+	? renderedVariants
+	: [activeVariant];
+
 const title = i18n(I18nKey.about);
 ---
 <MainGridLayout title={title}>
@@ -33,9 +54,174 @@ const title = i18n(I18nKey.about);
             
             
             <!-- 从MD文件读取的内容 -->
-            <Markdown class="mt-2">
-                <Content />
-            </Markdown>
+            <div
+                data-spec-variant-root
+                data-spec-variant-switch-enabled={enableBrowserLanguageContentSwitch ? "true" : "false"}
+                data-spec-variant-site-lang={siteConfig.lang}
+            >
+                <div data-spec-variant-sections>
+                    {visibleVariantBlocks.map((variant) => {
+                        const VariantContent = variant.Content;
+                        const isDefaultVariant = variant.entry.id === activeVariant.entry.id;
+                        const isHiddenVariant =
+                            enableBrowserLanguageContentSwitch && !isDefaultVariant;
+
+                        return (
+                            <section
+                                data-spec-variant-section="true"
+                                data-spec-variant-lang={variant.langKey}
+                                data-pagefind-ignore={isDefaultVariant ? undefined : true}
+                                hidden={isHiddenVariant}
+                            >
+                                <Markdown class="mt-2">
+                                    <VariantContent />
+                                </Markdown>
+                            </section>
+                        );
+                    })}
+                </div>
+            </div>
         </div>
     </div>
+
+    <script is:inline>
+        function normalizeSpecVariantLang(raw) {
+            if (!raw) return "";
+            const normalized = String(raw).trim().toLowerCase().replace(/-/g, "_");
+            if (normalized === "jp" || normalized === "ja_jp") return "ja";
+            if (normalized === "en_us" || normalized === "en_gb" || normalized === "en_au") return "en";
+            if (normalized === "cn" || normalized === "zh_hans" || normalized === "zh_sg") return "zh_cn";
+            if (normalized === "tw" || normalized === "zh_hant" || normalized === "zh_hk" || normalized === "zh_mo") return "zh_tw";
+            return normalized;
+        }
+
+        function getSpecBrowserLangCandidates() {
+            const rawList =
+                Array.isArray(navigator.languages) && navigator.languages.length > 0
+                    ? navigator.languages
+                    : navigator.language
+                        ? [navigator.language]
+                        : [];
+            const result = [];
+            for (const raw of rawList) {
+                const normalized = normalizeSpecVariantLang(raw);
+                if (!normalized) continue;
+                if (!result.includes(normalized)) result.push(normalized);
+                const base = normalized.split("_")[0];
+                if (base && !result.includes(base)) result.push(base);
+            }
+            return result;
+        }
+
+        function refreshSpecTOC() {
+            try {
+                const tocElement = document.querySelector("table-of-contents");
+                if (tocElement && typeof tocElement.regenerateTOC === "function") {
+                    tocElement.regenerateTOC();
+                    if (typeof tocElement.init === "function") tocElement.init();
+                }
+                window.dispatchEvent(new Event("resize"));
+            } catch (error) {
+                console.warn("Failed to refresh TOC after spec language switch:", error);
+            }
+        }
+
+        function applySpecVariantForRoot(root) {
+            if (!root || root.dataset.specVariantSwitchEnabled !== "true") return;
+            const sectionWrapper = root.querySelector("[data-spec-variant-sections]");
+            if (!sectionWrapper) return;
+
+            if (!sectionWrapper._allVariantSections) {
+                sectionWrapper._allVariantSections = Array.from(
+                    sectionWrapper.querySelectorAll("[data-spec-variant-section]"),
+                );
+            }
+
+            const sections = sectionWrapper._allVariantSections;
+            if (!sections || sections.length <= 1) return;
+
+            const byLang = new Map();
+            let defaultSection = null;
+            for (const section of sections) {
+                const langKey = normalizeSpecVariantLang(
+                    section.getAttribute("data-spec-variant-lang"),
+                ) || "default";
+                if (!byLang.has(langKey)) byLang.set(langKey, section);
+                const base = langKey.split("_")[0];
+                if (base && !byLang.has(base)) byLang.set(base, section);
+                if (langKey === "default" && !defaultSection) defaultSection = section;
+            }
+
+            const candidates = [
+                ...getSpecBrowserLangCandidates(),
+                normalizeSpecVariantLang(root.dataset.specVariantSiteLang),
+                "default",
+                "en",
+            ].filter(Boolean);
+
+            let target = null;
+            for (const candidate of candidates) {
+                const match = byLang.get(candidate);
+                if (match) {
+                    target = match;
+                    break;
+                }
+            }
+            if (!target) target = defaultSection || sections[0];
+            if (!target) return;
+
+            const currentVisible = sections.find(
+                (section) => section.parentElement === sectionWrapper && !section.hidden,
+            );
+            const changed = currentVisible !== target;
+
+            for (const section of sections) {
+                if (section === target) continue;
+                section.hidden = true;
+                if (section.parentElement === sectionWrapper) {
+                    sectionWrapper.removeChild(section);
+                }
+            }
+            if (target.parentElement !== sectionWrapper) {
+                sectionWrapper.appendChild(target);
+            }
+            target.hidden = false;
+
+            if (changed) requestAnimationFrame(refreshSpecTOC);
+        }
+
+        function applyAllSpecVariants() {
+            document
+                .querySelectorAll("[data-spec-variant-root]")
+                .forEach((root) => applySpecVariantForRoot(root));
+        }
+
+        document.addEventListener("DOMContentLoaded", applyAllSpecVariants);
+        if (document.readyState !== "loading") applyAllSpecVariants();
+
+        function setupSpecVariantSwupListeners() {
+            if (window._mizukiSpecVariantSwupBound) return;
+
+            function tryBind() {
+                if (window.swup && window.swup.hooks) {
+                    window.swup.hooks.on("content:replace", () => {
+                        requestAnimationFrame(applyAllSpecVariants);
+                    });
+                    window._mizukiSpecVariantSwupBound = true;
+                    return true;
+                }
+                return false;
+            }
+
+            if (!tryBind()) {
+                let retryCount = 0;
+                const timer = setInterval(() => {
+                    if (tryBind() || ++retryCount >= 10) {
+                        clearInterval(timer);
+                    }
+                }, 100);
+            }
+        }
+        setTimeout(setupSpecVariantSwupListeners, 200);
+    </script>
 </MainGridLayout>

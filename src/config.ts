@@ -24,7 +24,7 @@ const SITE_TIMEZONE = 9; //设置你的网站时区 from -12 to 12 default in UT
 export const siteConfig: SiteConfig = {
 	title: "dreaife's blog", // 站点标题
 	subtitle: "The world's end begins.", // 站点副标题
-	siteURL: "https://mizuki.mysqil.com/", // 请替换为你的站点URL，以斜杠结尾
+	siteURL: "https://dreaife.tokyo/", // 请替换为你的站点URL，以斜杠结尾
 	siteStartDate: "2026-02-22", // 站点开始运行日期，用于站点统计组件计算运行天数
 
 	timeZone: SITE_TIMEZONE,
@@ -58,7 +58,7 @@ export const siteConfig: SiteConfig = {
 		icon: "assets/home/home.png",
 		// 网站Logo图片路径
 		// TODO
-		logo: "assets/home/default-logo.png",
+		logo: "assets/home/logo.png",
 	},
 
 	// 页面自动缩放配置
@@ -145,7 +145,7 @@ export const siteConfig: SiteConfig = {
 			], // 移动横幅图片
 		}, // 使用本地横幅图片
 
-		position: "center", // 等同于 object-position，仅支持 'top', 'center', 'bottom'。默认为 'center'
+		position: "top", // 等同于 object-position，仅支持 'top', 'center', 'bottom'。默认为 'center'
 
 		carousel: {
 			enable: true, // 为 true 时：为多张图片启用轮播。为 false 时：从数组中随机显示一张图片

@@ -38,7 +38,8 @@ export default defineConfig({
 
 	integrations: [
 		umami({
-			shareUrl: false,
+			shareUrl:
+				"https://cloud.umami.is/analytics/us/share/B7X8habYULipQgGf",
 		}),
 		tailwind({
 			nesting: true,
@@ -192,3 +193,4 @@ export default defineConfig({
 		},
 	},
 });
+

@@ -187,6 +187,153 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 	setTimeout(publishLayoutInit, 150);
 </script>
 
+<script>
+	function normalizePostPreviewLang(raw: string | null | undefined) {
+		if (!raw) return "";
+		const normalized = String(raw).trim().toLowerCase().replace(/-/g, "_");
+		if (normalized === "jp" || normalized === "ja_jp") return "ja";
+		if (
+			normalized === "en_us" ||
+			normalized === "en_gb" ||
+			normalized === "en_au"
+		)
+			return "en";
+		if (
+			normalized === "cn" ||
+			normalized === "zh_hans" ||
+			normalized === "zh_sg"
+		)
+			return "zh_cn";
+		if (
+			normalized === "tw" ||
+			normalized === "zh_hant" ||
+			normalized === "zh_hk" ||
+			normalized === "zh_mo"
+		)
+			return "zh_tw";
+		return normalized;
+	}
+
+	function getPostPreviewBrowserLangCandidates() {
+		const rawList =
+			Array.isArray(navigator.languages) && navigator.languages.length > 0
+				? navigator.languages
+				: navigator.language
+					? [navigator.language]
+					: [];
+		const result: string[] = [];
+
+		for (const raw of rawList) {
+			const normalized = normalizePostPreviewLang(raw);
+			if (!normalized) continue;
+			if (!result.includes(normalized)) result.push(normalized);
+			const base = normalized.split("_")[0];
+			if (base && !result.includes(base)) result.push(base);
+		}
+
+		return result;
+	}
+
+	function applyLocalizedPostPreviews() {
+		const cards = document.querySelectorAll<HTMLElement>(
+			"#post-list-container [data-post-preview-variants]",
+		);
+		if (!cards.length) return;
+
+		const candidates = getPostPreviewBrowserLangCandidates();
+
+		for (const card of cards) {
+			const raw = card.dataset.postPreviewVariants;
+			if (!raw) continue;
+
+			let variants: Array<{
+				lang?: string;
+				title?: string;
+				description?: string;
+			}> = [];
+			try {
+				variants = JSON.parse(raw);
+			} catch {
+				continue;
+			}
+			if (!Array.isArray(variants) || variants.length <= 1) continue;
+
+			const byLang = new Map<string, (typeof variants)[number]>();
+			let defaultVariant: (typeof variants)[number] | null = null;
+
+			for (const variant of variants) {
+				const lang = normalizePostPreviewLang(variant.lang || "") || "default";
+				if (!byLang.has(lang)) byLang.set(lang, variant);
+				const base = lang.split("_")[0];
+				if (base && !byLang.has(base)) byLang.set(base, variant);
+				if (lang === "default" && !defaultVariant) defaultVariant = variant;
+			}
+
+			let target =
+				candidates.map((lang) => byLang.get(lang)).find(Boolean) ||
+				defaultVariant ||
+				variants[0];
+			if (!target) continue;
+
+			const titleEl = card.querySelector<HTMLElement>("[data-post-preview-title]");
+			if (titleEl && typeof target.title === "string" && target.title.length > 0) {
+				titleEl.textContent = target.title;
+			}
+
+			const descEl = card.querySelector<HTMLElement>(
+				"[data-post-preview-description]",
+			);
+			if (
+				descEl &&
+				typeof target.description === "string" &&
+				target.description.length > 0
+			) {
+				descEl.textContent = target.description;
+			}
+
+			const links = card.querySelectorAll<HTMLAnchorElement>(
+				"[data-post-preview-title-link], [data-post-preview-cover-link]",
+			);
+			for (const link of links) {
+				if (typeof target.title === "string" && target.title.length > 0) {
+					link.setAttribute("aria-label", target.title);
+					link.setAttribute("title", target.title);
+				}
+			}
+		}
+	}
+
+	document.addEventListener("DOMContentLoaded", applyLocalizedPostPreviews);
+	if (document.readyState !== "loading") applyLocalizedPostPreviews();
+
+	function setupLocalizedPreviewSwupListeners() {
+		if ((window as any)._localizedPostPreviewSwupBound) return;
+
+		function tryBind() {
+			if (typeof window !== "undefined" && (window as any).swup) {
+				(window as any).swup.hooks.on(
+					"content:replace",
+					() => requestAnimationFrame(applyLocalizedPostPreviews),
+				);
+				(window as any)._localizedPostPreviewSwupBound = true;
+				return true;
+			}
+			return false;
+		}
+
+		if (!tryBind()) {
+			let retryCount = 0;
+			const retryInterval = setInterval(() => {
+				if (tryBind() || ++retryCount >= 10) {
+					clearInterval(retryInterval);
+				}
+			}, 100);
+		}
+	}
+
+	setTimeout(setupLocalizedPreviewSwupListeners, 200);
+</script>
+
 <style>
 	/* 基础容器 */
 	#post-list-container {

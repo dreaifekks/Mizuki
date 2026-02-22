@@ -1,6 +1,7 @@
 import type { CollectionEntry } from "astro:content";
 import { permalinkConfig } from "../config";
 import { removeFileExtension } from "./url-utils";
+import { getCanonicalPostSlugFromId } from "./post-variant-utils";
 
 // 文章 ID 映射缓存（用于存储按时间排序后的文章序号）
 let postIdMap: Map<string, number> | null = null;
@@ -87,7 +88,7 @@ export function generatePermalinkSlug(post: CollectionEntry<"posts">): string {
 	}
 
 	const published = post.data.published;
-	const postname = removeFileExtension(post.id);
+	const postname = getCanonicalPostSlugFromId(post.id);
 	const category = post.data.category || "uncategorized";
 
 	// 替换占位符

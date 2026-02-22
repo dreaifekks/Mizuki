@@ -3,9 +3,11 @@ import type { CollectionEntry } from "astro:content";
 import { render } from "astro:content";
 import { Icon } from "astro-icon/components";
 import { getFileDirFromPath, getTagUrl, getPostUrl } from "@/utils/url-utils";
+import { getPostVariantsForEntry } from "@utils/content-utils";
 import { siteConfig } from "../config";
 import I18nKey from "../i18n/i18nKey";
 import { i18n } from "../i18n/translation";
+import { getPostVariantLanguageKey } from "../utils/post-variant-utils";
 import ImageWrapper from "./misc/ImageWrapper.astro";
 import PostMetadata from "./PostMeta.astro";
 
@@ -34,6 +36,33 @@ const hasCover = image !== undefined && image !== null && image !== "";
 const coverWidth = "28%";
 
 const { remarkPluginFrontmatter } = await render(entry);
+const variantEntries = await getPostVariantsForEntry(entry);
+const cardVariants = variantEntries.length > 0 ? variantEntries : [entry];
+const previewVariants =
+	cardVariants.length > 1
+		? await Promise.all(
+				cardVariants.map(async (variantEntry) => {
+					const isCurrent = variantEntry.id === entry.id;
+					const variantExcerpt = isCurrent
+						? description || remarkPluginFrontmatter.excerpt
+						: (async () => {
+								const { remarkPluginFrontmatter: variantRemark } =
+									await render(variantEntry);
+								return (
+									variantEntry.data.description ||
+									variantRemark.excerpt ||
+									""
+								);
+						  })();
+
+					return {
+						lang: getPostVariantLanguageKey(variantEntry),
+						title: variantEntry.data.title,
+						description: await variantExcerpt,
+					};
+				}),
+		  )
+		: [];
 ---
 
 <div
@@ -41,6 +70,9 @@ const { remarkPluginFrontmatter } = await render(entry);
 		"card-base flex flex-col-reverse md:flex-col w-full rounded-[var(--radius-large)] overflow-hidden relative",
 		className,
 	]}
+	data-post-preview-variants={
+		previewVariants.length > 1 ? JSON.stringify(previewVariants) : undefined
+	}
 	style={style}
 >
 	<div
@@ -54,6 +86,7 @@ const { remarkPluginFrontmatter } = await render(entry);
 	>
 		<a
 			href={url}
+			data-post-preview-title-link
 			class="transition group w-full block font-bold mb-3 text-3xl text-90
         hover:text-[var(--primary)] dark:hover:text-[var(--primary)]
         active:text-[var(--title-active)] dark:active:text-[var(--title-active)]
@@ -69,7 +102,7 @@ const { remarkPluginFrontmatter } = await render(entry);
 					/>
 				)
 			}
-			{title}
+			<span data-post-preview-title>{title}</span>
 			<Icon
 				class="inline text-[2rem] text-[var(--primary)] md:hidden translate-y-0.5 absolute"
 				name="material-symbols:chevron-right-rounded"
@@ -94,6 +127,7 @@ const { remarkPluginFrontmatter } = await render(entry);
 		/>
 
 		<div
+			data-post-preview-description
 			class:list={[
 				"transition text-75 mb-3.5 pr-4",
 				{ "line-clamp-2 md:line-clamp-1": !description },
@@ -132,6 +166,7 @@ const { remarkPluginFrontmatter } = await render(entry);
 			<a
 				href={url}
 				aria-label={title}
+				data-post-preview-cover-link
 				class:list={[
 					"group",
 					"max-h-[20vh] md:max-h-none mx-4 mt-4 -mb-2 md:mb-0 md:mx-0 md:mt-0",
@@ -160,6 +195,7 @@ const { remarkPluginFrontmatter } = await render(entry);
 			<a
 				href={url}
 				aria-label={title}
+				data-post-preview-cover-link
 				class="!hidden md:!flex btn-regular w-[3.25rem]
          absolute right-3 top-3 bottom-3 rounded-xl bg-[var(--enter-btn-bg)]
          hover:bg-[var(--enter-btn-bg-hover)] active:bg-[var(--enter-btn-bg-active)] active:scale-95

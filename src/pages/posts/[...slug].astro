@@ -9,11 +9,10 @@ import SharePoster from "@components/misc/SharePoster.svelte";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
-import { getSortedPosts } from "@utils/content-utils";
+import { getSortedPostGroups } from "@utils/content-utils";
 import {
 	getFileDirFromPath,
 	getPostUrlBySlug,
-	removeFileExtension,
 } from "@utils/url-utils";
 import {
 	hasCustomPermalink,
@@ -28,21 +27,31 @@ import PostMetadata from "../../components/PostMeta.astro";
 import { profileConfig, siteConfig } from "../../config";
 import { formatDateToYYYYMMDD } from "../../utils/date-utils";
 import Encryptor from "../../components/Encryptor.astro";
+import {
+	getCanonicalPostSlugFromId,
+	getPostVariantLanguageKey,
+} from "../../utils/post-variant-utils";
 
 export async function getStaticPaths() {
-	const blogEntries = await getSortedPosts();
+	const postGroups = await getSortedPostGroups();
+	const blogEntries = postGroups.map((group) => group.defaultEntry);
 
 	// 初始化文章 ID 映射（用于 %post_id% 占位符）
 	initPostIdMap(blogEntries);
 
 	const paths: {
 		params: { slug: string };
-		props: { entry: CollectionEntry<"posts"> };
+		props: {
+			entry: CollectionEntry<"posts">;
+			variants: CollectionEntry<"posts">[];
+		};
 	}[] = [];
 
-	for (const entry of blogEntries) {
+	for (const group of postGroups) {
+		const entry = group.defaultEntry;
+		const variants = group.variants;
 		// 将 id 转换为 slug（移除扩展名）以匹配路由参数
-		const defaultSlug = removeFileExtension(entry.id);
+		const defaultSlug = getCanonicalPostSlugFromId(entry.id);
 
 		// 如果文章有自定义 permalink，不在 /posts/ 下创建路径
 		// 而是通过根目录的 [permalink].astro 处理
@@ -50,7 +59,7 @@ export async function getStaticPaths() {
 			// 仍然需要在 /posts/ 下创建默认路径以便兼容旧链接
 			paths.push({
 				params: { slug: defaultSlug },
-				props: { entry },
+				props: { entry, variants },
 			});
 			continue;
 		}
@@ -61,14 +70,14 @@ export async function getStaticPaths() {
 			// 仍然保留默认 slug 路径以便兼容旧链接
 			paths.push({
 				params: { slug: defaultSlug },
-				props: { entry },
+				props: { entry, variants },
 			});
 		} else {
 			// 全局 permalink 功能未启用
 			// 为每篇文章创建默认的 slug 路径
 			paths.push({
 				params: { slug: defaultSlug },
-				props: { entry },
+				props: { entry, variants },
 			});
 
 			// 如果文章有 alias，也创建对应的路径
@@ -83,7 +92,7 @@ export async function getStaticPaths() {
 				}
 				paths.push({
 					params: { slug: alias },
-					props: { entry },
+					props: { entry, variants },
 				});
 			}
 		}
@@ -92,9 +101,38 @@ export async function getStaticPaths() {
 	return paths;
 }
 
-const { entry } = Astro.props;
-const { Content, headings } = await render(entry);
-const { remarkPluginFrontmatter } = await render(entry);
+const {
+	entry,
+	variants = [entry],
+}: {
+	entry: CollectionEntry<"posts">;
+	variants?: CollectionEntry<"posts">[];
+} = Astro.props;
+
+const renderedVariants = await Promise.all(
+	variants.map(async (variantEntry) => {
+		const rendered = await render(variantEntry);
+		return {
+			entry: variantEntry,
+			Content: rendered.Content,
+			headings: rendered.headings,
+			remarkPluginFrontmatter: rendered.remarkPluginFrontmatter,
+			langKey: getPostVariantLanguageKey(variantEntry),
+			isEncrypted: !!(variantEntry.data.encrypted && variantEntry.data.password),
+		};
+	}),
+);
+
+const activeVariant =
+	renderedVariants.find((variant) => variant.entry.id === entry.id) ||
+	renderedVariants[0];
+const headings = activeVariant.headings;
+const hasMultipleVariants = renderedVariants.length > 1;
+const hasEncryptedVariant = renderedVariants.some((variant) => variant.isEncrypted);
+const enableBrowserLanguageContentSwitch = hasMultipleVariants && !hasEncryptedVariant;
+const visibleVariantBlocks = enableBrowserLanguageContentSwitch
+	? renderedVariants
+	: [activeVariant];
 
 // Process cover image for SharePoster
 let posterCoverUrl = entry.data.image;
@@ -156,7 +194,7 @@ if (profileConfig.avatar) {
 }
 
 // 判断是否为加密文章
-let isEncrypted = entry.data.encrypted && entry.data.password;
+let isEncrypted = activeVariant.isEncrypted;
 
 dayjs.extend(utc);
 const lastModified = dayjs(entry.data.updated || entry.data.published)
@@ -188,7 +226,7 @@ const jsonLd = {
     description={entry.data.description}
     lang={entry.data.lang}
     setOGTypeArticle={true}
-    postSlug={entry.id}
+    postSlug={getCanonicalPostSlugFromId(entry.id)}
     headings={headings}
 >
     <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
@@ -201,110 +239,132 @@ const jsonLd = {
     >
         <div
             id="post-container"
+            data-post-variant-switch-enabled={enableBrowserLanguageContentSwitch ? "true" : "false"}
+            data-post-variant-site-lang={siteConfig.lang}
             class:list={[
                 "card-base z-10 px-6 md:px-9 pt-6 pb-4 relative w-full ",
                 {},
             ]}
         >
-            <!-- word count and reading time -->
-            <div
-                class="flex flex-row text-black/30 dark:text-white/30 gap-5 mb-3 transition onload-animation"
-            >
-                <div class="flex flex-row items-center">
-                    <div
-                        class="transition h-6 w-6 rounded-md bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50 flex items-center justify-center mr-2"
-                    >
-                        <Icon name="material-symbols:notes-rounded" />
-                    </div>
-                    <div class="text-sm">
-                        {remarkPluginFrontmatter.words}
-                        {" " + i18n(I18nKey.wordsCount)}
-                    </div>
-                </div>
-                <div class="flex flex-row items-center">
-                    <div
-                        class="transition h-6 w-6 rounded-md bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50 flex items-center justify-center mr-2"
-                    >
-                        <Icon
-                            name="material-symbols:schedule-outline-rounded"
-                        />
-                    </div>
-                    <div class="text-sm">
-                        {remarkPluginFrontmatter.minutes}
-                        {
-                            " " +
-                                i18n(
-                                    remarkPluginFrontmatter.minutes === 1
-                                        ? I18nKey.minuteCount
-                                        : I18nKey.minutesCount,
+            <div data-post-variant-sections>
+            {
+                visibleVariantBlocks.map((variant, variantIndex) => {
+                    const variantEntry = variant.entry;
+                    const VariantContent = variant.Content;
+                    const isDefaultVariant = variantEntry.id === activeVariant.entry.id;
+                    const isHiddenVariant =
+                        enableBrowserLanguageContentSwitch && !isDefaultVariant;
+
+                    return (
+                        <section
+                            data-post-variant-section="true"
+                            data-post-variant-lang={variant.langKey}
+                            data-pagefind-ignore={isDefaultVariant ? undefined : true}
+                            hidden={isHiddenVariant}
+                        >
+                            <!-- word count and reading time -->
+                            <div
+                                class="flex flex-row text-black/30 dark:text-white/30 gap-5 mb-3 transition onload-animation"
+                            >
+                                <div class="flex flex-row items-center">
+                                    <div
+                                        class="transition h-6 w-6 rounded-md bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50 flex items-center justify-center mr-2"
+                                    >
+                                        <Icon name="material-symbols:notes-rounded" />
+                                    </div>
+                                    <div class="text-sm">
+                                        {variant.remarkPluginFrontmatter.words}
+                                        {" " + i18n(I18nKey.wordsCount)}
+                                    </div>
+                                </div>
+                                <div class="flex flex-row items-center">
+                                    <div
+                                        class="transition h-6 w-6 rounded-md bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50 flex items-center justify-center mr-2"
+                                    >
+                                        <Icon
+                                            name="material-symbols:schedule-outline-rounded"
+                                        />
+                                    </div>
+                                    <div class="text-sm">
+                                        {variant.remarkPluginFrontmatter.minutes}
+                                        {
+                                            " " +
+                                                i18n(
+                                                    variant.remarkPluginFrontmatter.minutes === 1
+                                                        ? I18nKey.minuteCount
+                                                        : I18nKey.minutesCount,
+                                                )
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- title -->
+                            <div class="relative onload-animation">
+                                <div
+                                    data-pagefind-body
+                                    data-pagefind-weight="10"
+                                    data-pagefind-meta="title"
+                                    class="transition w-full block font-bold mb-3
+                                    text-3xl md:text-[2.25rem]/[2.75rem]
+                                    text-black/90 dark:text-white/90
+                                    md:before:w-1 before:h-5 before:rounded-md before:bg-[var(--primary)]
+                                    before:absolute before:top-[0.75rem] before:left-[-1.125rem]"
+                                >
+                                    {variantEntry.data.title}
+                                </div>
+                            </div>
+
+                            <!-- metadata -->
+                            <div class="onload-animation">
+                                <PostMetadata
+                                    className="mb-5"
+                                    published={variantEntry.data.published}
+                                    updated={variantEntry.data.updated}
+                                    tags={variantEntry.data.tags}
+                                    category={variantEntry.data.category || undefined}
+                                    id={isDefaultVariant ? getCanonicalPostSlugFromId(entry.id) : undefined}
+                                />
+                                {
+                                    (!variantEntry.data.image || (variantEntry.data.image && !siteConfig.showCoverInContent)) && (
+                                        <div class="mt-4 border-[var(--line-divider)] border-dashed border-b-[1px] mb-5" />
+                                    )
+                                }
+                            </div>
+
+                            <!-- always show cover as long as it has one -->
+                            {
+                                variantEntry.data.image && siteConfig.showCoverInContent && (
+                                    <>
+                                        <div class="mt-4" />
+                                        <ImageWrapper
+                                            id={`post-cover-${variant.langKey || "default"}-${variantIndex}`}
+                                            src={variantEntry.data.image}
+                                            basePath={getFileDirFromPath(variantEntry.filePath || '')}
+                                            class="mb-8 rounded-xl banner-container onload-animation"
+                                        />
+                                    </>
                                 )
-                        }
-                    </div>
-                </div>
-            </div>
+                            }
 
-            <!-- title -->
-            <div class="relative onload-animation">
-                <div
-                    data-pagefind-body
-                    data-pagefind-weight="10"
-                    data-pagefind-meta="title"
-                    class="transition w-full block font-bold mb-3
-                    text-3xl md:text-[2.25rem]/[2.75rem]
-                    text-black/90 dark:text-white/90
-                    md:before:w-1 before:h-5 before:rounded-md before:bg-[var(--primary)]
-                    before:absolute before:top-[0.75rem] before:left-[-1.125rem]"
-                >
-                    {entry.data.title}
-                </div>
-            </div>
-
-            <!-- metadata -->
-            <div class="onload-animation">
-                <PostMetadata
-                    className="mb-5"
-                    published={entry.data.published}
-                    updated={entry.data.updated}
-                    tags={entry.data.tags}
-                    category={entry.data.category || undefined}
-                    id={entry.id}
-                />
-                {
-                    (!entry.data.image|| (entry.data.image && !siteConfig.showCoverInContent)) && (
-                        <div class="mt-4 border-[var(--line-divider)] border-dashed border-b-[1px] mb-5" />
-                    )
-                }
-            </div>
-
-            <!-- always show cover as long as it has one -->
-
-            {
-                entry.data.image && siteConfig.showCoverInContent && (
-                    <>
-                        <div class="mt-4" />
-                        <ImageWrapper
-                            id="post-cover"
-                            src={entry.data.image}
-                            basePath={getFileDirFromPath(entry.filePath || '')}
-                            class="mb-8 rounded-xl banner-container onload-animation"
-                        />
-                    </>
-                )
+                            {
+                                variant.isEncrypted ? (
+                                    <Encryptor password={variantEntry.data.password}>
+                                         <Markdown class="mb-6 markdown-content onload-animation">
+                                            <VariantContent />
+                                        </Markdown>
+                                    </Encryptor>
+                                ) : (
+                                    <Markdown class="mb-6 markdown-content onload-animation">
+                                        <VariantContent />
+                                    </Markdown>
+                                )
+                            }
+                        </section>
+                    );
+                })
             }
-
-            {
-                isEncrypted ? (
-                    <Encryptor password={entry.data.password}>
-                         <Markdown class="mb-6 markdown-content onload-animation">
-                            <Content />
-                        </Markdown>
-                    </Encryptor>
-                ) : (
-                    <Markdown class="mb-6 markdown-content onload-animation">
-                        <Content />
-                    </Markdown>
-                )
-            }
+            </div>
 
             {shareConfig.enable && (
                 <div id="share-component" class:list={["p-6 bg-[var(--license-block-bg)] rounded-xl mb-6 onload-animation", { "encrypted-hidden": isEncrypted }]}>
@@ -358,6 +418,161 @@ const jsonLd = {
             )}
         </div>
     </div>
+
+    <script is:inline>
+        function normalizePostVariantLang(raw) {
+            if (!raw) return "";
+            const normalized = String(raw).trim().toLowerCase().replace(/-/g, "_");
+            if (normalized === "jp" || normalized === "ja_jp") return "ja";
+            if (normalized === "en_us" || normalized === "en_gb" || normalized === "en_au") return "en";
+            if (normalized === "cn" || normalized === "zh_hans" || normalized === "zh_sg") return "zh_cn";
+            if (normalized === "tw" || normalized === "zh_hant" || normalized === "zh_hk" || normalized === "zh_mo") return "zh_tw";
+            return normalized;
+        }
+
+        function getBrowserVariantLangCandidates() {
+            const rawList =
+                Array.isArray(navigator.languages) && navigator.languages.length > 0
+                    ? navigator.languages
+                    : navigator.language
+                        ? [navigator.language]
+                        : [];
+
+            const result = [];
+            for (const raw of rawList) {
+                const normalized = normalizePostVariantLang(raw);
+                if (!normalized) continue;
+                if (!result.includes(normalized)) result.push(normalized);
+                const base = normalized.split("_")[0];
+                if (base && !result.includes(base)) result.push(base);
+            }
+            return result;
+        }
+
+        function refreshArticleTOC() {
+            try {
+                const tocElement = document.querySelector("table-of-contents");
+                if (tocElement && typeof tocElement.regenerateTOC === "function") {
+                    tocElement.regenerateTOC();
+                    if (typeof tocElement.init === "function") {
+                        tocElement.init();
+                    }
+                }
+                window.dispatchEvent(new Event("resize"));
+            } catch (error) {
+                console.warn("Failed to refresh TOC after language switch:", error);
+            }
+        }
+
+        function applyPostVariantByBrowserLanguage() {
+            const container = document.getElementById("post-container");
+            if (!container) return;
+            if (container.dataset.postVariantSwitchEnabled !== "true") return;
+
+            const sectionWrapper = container.querySelector("[data-post-variant-sections]");
+            if (!sectionWrapper) return;
+
+            if (!sectionWrapper._allVariantSections) {
+                sectionWrapper._allVariantSections = Array.from(
+                    sectionWrapper.querySelectorAll("[data-post-variant-section]"),
+                );
+            }
+
+            const sections = sectionWrapper._allVariantSections;
+            if (sections.length <= 1) return;
+
+            const byLang = new Map();
+            let defaultSection = null;
+
+            for (const section of sections) {
+                const langKey = normalizePostVariantLang(
+                    section.getAttribute("data-post-variant-lang"),
+                ) || "default";
+
+                if (!byLang.has(langKey)) byLang.set(langKey, section);
+                const base = langKey.split("_")[0];
+                if (base && !byLang.has(base)) byLang.set(base, section);
+                if (langKey === "default" && !defaultSection) defaultSection = section;
+            }
+
+            const candidates = [
+                ...getBrowserVariantLangCandidates(),
+                normalizePostVariantLang(container.dataset.postVariantSiteLang),
+                "default",
+                "en",
+            ].filter(Boolean);
+
+            let target = null;
+            for (const candidate of candidates) {
+                const match = byLang.get(candidate);
+                if (match) {
+                    target = match;
+                    break;
+                }
+            }
+            if (!target) target = defaultSection || sections[0];
+            if (!target) return;
+
+            const currentVisible = sections.find(
+                (section) => section.parentElement === sectionWrapper && !section.hidden,
+            );
+            const changed = currentVisible !== target;
+
+            for (const section of sections) {
+                if (section === target) continue;
+                section.hidden = true;
+                if (section.parentElement === sectionWrapper) {
+                    sectionWrapper.removeChild(section);
+                }
+            }
+
+            if (target.parentElement !== sectionWrapper) {
+                sectionWrapper.appendChild(target);
+            }
+            target.hidden = false;
+
+            if (changed) {
+                requestAnimationFrame(refreshArticleTOC);
+                window.dispatchEvent(
+                    new CustomEvent("mizuki:post-language-switched", {
+                        detail: {
+                            lang: target.getAttribute("data-post-variant-lang") || "default",
+                        },
+                    }),
+                );
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", applyPostVariantByBrowserLanguage);
+        if (document.readyState !== "loading") {
+            applyPostVariantByBrowserLanguage();
+        }
+
+        function setupPostVariantSwupListener() {
+            if (window._mizukiPostVariantSwupBound) return;
+
+            function tryBind() {
+                if (window.swup && window.swup.hooks) {
+                    window.swup.hooks.on("content:replace", () => {
+                        requestAnimationFrame(applyPostVariantByBrowserLanguage);
+                    });
+                    window._mizukiPostVariantSwupBound = true;
+                    return true;
+                }
+                return false;
+            }
+
+            if (!tryBind()) {
+                let retryCount = 0;
+                const timer = setInterval(() => {
+                    if (tryBind() || ++retryCount >= 10) {
+                        clearInterval(timer);
+                    }
+                }, 100);
+            }
+        }
+        setTimeout(setupPostVariantSwupListener, 200);
+    </script>
 
     <!-- 评论 -->
     <Comment post={entry} />

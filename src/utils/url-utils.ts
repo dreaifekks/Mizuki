@@ -3,6 +3,7 @@ import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import { permalinkConfig } from "../config";
 import { generatePermalinkSlug } from "./permalink-utils";
+import { getCanonicalPostSlugFromId } from "./post-variant-utils";
 
 /**
  * 移除文件扩展名（.md, .mdx, .markdown）
@@ -24,8 +25,8 @@ function joinUrl(...parts: string[]): string {
 }
 
 export function getPostUrlBySlug(slug: string): string {
-	// 移除文件扩展名（如 .md, .mdx 等）
-	const slugWithoutExt = removeFileExtension(slug);
+	// 移除文件扩展名，并将语言后缀变体（如 foo.en）映射到 canonical slug（foo）
+	const slugWithoutExt = getCanonicalPostSlugFromId(slug);
 	return url(`/posts/${slugWithoutExt}/`);
 }
 

@@ -73,7 +73,7 @@ async function getGroupedPosts(): Promise<PostVariantGroup[]> {
 			const grouped = new Map<string, PostEntry[]>();
 
 			for (const post of allPosts) {
-				const canonicalId = getCanonicalPostSlugFromId(post.id);
+				const canonicalId = getCanonicalPostSlugFromId(post);
 				const list = grouped.get(canonicalId);
 				if (list) {
 					list.push(post);
@@ -114,7 +114,7 @@ export async function getPostVariantsForEntry(
 	entry: Pick<PostEntry, "id">,
 ): Promise<PostEntry[]> {
 	const groups = await getGroupedPosts();
-	const canonicalId = getCanonicalPostSlugFromId(entry.id);
+	const canonicalId = getCanonicalPostSlugFromId(entry);
 	const group = groups.find((item) => item.canonicalId === canonicalId);
 	return group?.variants ?? [];
 }

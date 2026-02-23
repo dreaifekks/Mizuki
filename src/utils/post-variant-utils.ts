@@ -77,6 +77,22 @@ function stripMarkdownExtension(id: string): string {
 	return id.replace(/\.(md|mdx|markdown)$/i, "");
 }
 
+function normalizePathSeparators(value: string): string {
+	return value.replace(/\\/g, "/");
+}
+
+function getRelativeContentPathFromFilePath(filePath: string): string {
+	const normalized = normalizePathSeparators(filePath).replace(/^\.?\//, "");
+	const contentMatch = normalized.match(/(?:^|\/)src\/content\/(?:posts|spec)\/(.+)$/i);
+	if (contentMatch?.[1]) return contentMatch[1];
+
+	// Fallback for cases where Astro returns a shorter relative path
+	const postsOrSpecMatch = normalized.match(/(?:^|\/)(?:posts|spec)\/(.+)$/i);
+	if (postsOrSpecMatch?.[1]) return postsOrSpecMatch[1];
+
+	return normalized;
+}
+
 export type PostVariantInfo = {
 	idWithoutExt: string;
 	canonicalId: string;
@@ -90,13 +106,16 @@ export function getPostVariantInfo(
 		| string
 		| {
 				id: string;
+				filePath?: string | null;
 				data?: { lang?: string | null };
 		  },
 ): PostVariantInfo {
 	const id = typeof post === "string" ? post : post.id;
+	const filePath = typeof post === "string" ? "" : (post.filePath ?? "");
 	const frontmatterLang =
 		typeof post === "string" ? "" : (post.data?.lang ?? "");
-	const idWithoutExt = stripMarkdownExtension(id);
+	const pathSource = filePath ? getRelativeContentPathFromFilePath(filePath) : id;
+	const idWithoutExt = stripMarkdownExtension(pathSource);
 	const { dir, base } = splitPathAndBase(idWithoutExt);
 
 	let canonicalBase = base;
@@ -125,8 +144,18 @@ export function getPostVariantInfo(
 	};
 }
 
-export function getCanonicalPostSlugFromId(id: string): string {
-	return getPostVariantInfo(id).canonicalId;
+type PostVariantLike = {
+	id: string;
+	filePath?: string | null;
+	data?: { lang?: string | null };
+};
+
+export function getCanonicalPostSlugFromId(id: string): string;
+export function getCanonicalPostSlugFromId(post: PostVariantLike): string;
+export function getCanonicalPostSlugFromId(
+	post: string | PostVariantLike,
+): string {
+	return getPostVariantInfo(post).canonicalId;
 }
 
 export function getPostVariantLanguageKey(
@@ -134,6 +163,7 @@ export function getPostVariantLanguageKey(
 		| string
 		| {
 				id: string;
+				filePath?: string | null;
 				data?: { lang?: string | null };
 		  },
 ): string {
@@ -181,7 +211,9 @@ export function getBrowserLanguageCandidatesFromNavigator(
 	return candidates;
 }
 
-export function selectPreferredPostVariant<T extends { id: string; data?: { lang?: string } }>(
+export function selectPreferredPostVariant<
+	T extends { id: string; filePath?: string | null; data?: { lang?: string } },
+>(
 	entries: T[],
 	preferredLang?: string | null,
 ): T {

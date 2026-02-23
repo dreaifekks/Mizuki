@@ -88,7 +88,7 @@ export function generatePermalinkSlug(post: CollectionEntry<"posts">): string {
 	}
 
 	const published = post.data.published;
-	const postname = getCanonicalPostSlugFromId(post.id);
+	const postname = getCanonicalPostSlugFromId(post);
 	const category = post.data.category || "uncategorized";
 
 	// 替换占位符

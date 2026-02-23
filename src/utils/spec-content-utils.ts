@@ -41,7 +41,7 @@ async function getSpecVariantGroupsInternal(): Promise<SpecVariantGroup[]> {
 			const grouped = new Map<string, SpecEntry[]>();
 
 			for (const entry of entries) {
-				const canonicalId = getCanonicalPostSlugFromId(entry.id);
+				const canonicalId = getCanonicalPostSlugFromId(entry);
 				const group = grouped.get(canonicalId);
 				if (group) {
 					group.push(entry);

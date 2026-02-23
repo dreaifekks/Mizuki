@@ -407,7 +407,7 @@ export const profileConfig: ProfileConfig = {
 		},
 		{
 			name: "Bangumi",
-			icon: "fa7-brands:bangumi",
+			icon: "simple-icons:barmenia",
 			url: "https://bgm.tv/user/lagos",
 		},
 		// {

@@ -395,15 +395,20 @@ export const profileConfig: ProfileConfig = {
 			icon: "fa7-brands:x-twitter",
 			url: "https://x.com/inkks1996",
 		},
-		{
-			name: "Telegram",
-			icon: "fa7-brands:telegram",
-			url: "https://t.me/dreaife",
-		},
+		// {
+		// 	name: "Telegram",
+		// 	icon: "fa7-brands:telegram",
+		// 	url: "https://t.me/dreaife",
+		// },
 		{
 			name: "Telegram Channel",
 			icon: "fa7-brands:telegram",
 			url: "https://t.me/inkks1996",
+		},
+		{
+			name: "Bangumi",
+			icon: "fa7-brands:bangumi",
+			url: "https://bgm.tv/user/lagos",
 		},
 		// {
 		// 	name: "Codeberg",

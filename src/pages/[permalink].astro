@@ -150,7 +150,7 @@ const jsonLd = {
     description={entry.data.description}
     lang={entry.data.lang}
     setOGTypeArticle={true}
-    postSlug={getCanonicalPostSlugFromId(entry.id)}
+    postSlug={getCanonicalPostSlugFromId(entry)}
     headings={headings}
 >
     <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
@@ -246,7 +246,7 @@ const jsonLd = {
                                     updated={variantEntry.data.updated}
                                     tags={variantEntry.data.tags}
                                     category={variantEntry.data.category || undefined}
-                                    id={isDefaultVariant ? getCanonicalPostSlugFromId(entry.id) : undefined}
+                                    id={isDefaultVariant ? getCanonicalPostSlugFromId(entry) : undefined}
                                 />
                                 {
                                     (!variantEntry.data.image || (variantEntry.data.image && !siteConfig.showCoverInContent)) && (

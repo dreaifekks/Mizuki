@@ -51,7 +51,7 @@ export async function getStaticPaths() {
 		const entry = group.defaultEntry;
 		const variants = group.variants;
 		// 将 id 转换为 slug（移除扩展名）以匹配路由参数
-		const defaultSlug = getCanonicalPostSlugFromId(entry.id);
+		const defaultSlug = getCanonicalPostSlugFromId(entry);
 
 		// 如果文章有自定义 permalink，不在 /posts/ 下创建路径
 		// 而是通过根目录的 [permalink].astro 处理
@@ -226,7 +226,7 @@ const jsonLd = {
     description={entry.data.description}
     lang={entry.data.lang}
     setOGTypeArticle={true}
-    postSlug={getCanonicalPostSlugFromId(entry.id)}
+    postSlug={getCanonicalPostSlugFromId(entry)}
     headings={headings}
 >
     <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
@@ -323,7 +323,7 @@ const jsonLd = {
                                     updated={variantEntry.data.updated}
                                     tags={variantEntry.data.tags}
                                     category={variantEntry.data.category || undefined}
-                                    id={isDefaultVariant ? getCanonicalPostSlugFromId(entry.id) : undefined}
+                                    id={isDefaultVariant ? getCanonicalPostSlugFromId(entry) : undefined}
                                 />
                                 {
                                     (!variantEntry.data.image || (variantEntry.data.image && !siteConfig.showCoverInContent)) && (

@@ -187,9 +187,11 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 	setTimeout(publishLayoutInit, 150);
 </script>
 
-<script>
-	function normalizePostPreviewLang(raw: string | null | undefined) {
-		if (!raw) return "";
+	<script>
+		const POST_VARIANT_LANG_STORAGE_KEY = "mizuki:postVariantLanguage";
+
+		function normalizePostPreviewLang(raw: string | null | undefined) {
+			if (!raw) return "";
 		const normalized = String(raw).trim().toLowerCase().replace(/-/g, "_");
 		if (normalized === "jp" || normalized === "ja_jp") return "ja";
 		if (
@@ -211,10 +213,95 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 			normalized === "zh_mo"
 		)
 			return "zh_tw";
-		return normalized;
-	}
+			return normalized;
+		}
 
-	function getPostPreviewBrowserLangCandidates() {
+		function getStoredPostPreviewLangPreference() {
+			try {
+				return normalizePostPreviewLang(
+					localStorage.getItem(POST_VARIANT_LANG_STORAGE_KEY),
+				);
+			} catch {
+				return "";
+			}
+		}
+
+		function setStoredPostPreviewLangPreference(lang: string) {
+			try {
+				const normalized = normalizePostPreviewLang(lang);
+				if (normalized) {
+					localStorage.setItem(POST_VARIANT_LANG_STORAGE_KEY, normalized);
+				} else {
+					localStorage.removeItem(POST_VARIANT_LANG_STORAGE_KEY);
+				}
+			} catch {
+				// Ignore localStorage errors
+			}
+		}
+
+		function getPostPreviewFloatingControlElements() {
+			const root = document.querySelector<HTMLElement>(
+				"[data-post-variant-floating-root]",
+			);
+			if (!root) return null;
+			return {
+				root,
+				select: root.querySelector<HTMLSelectElement>(
+					"[data-post-variant-floating-select]",
+				),
+				currentLabel: root.querySelector<HTMLElement>(
+					"[data-post-variant-current-label]",
+				),
+			};
+		}
+
+		function setPostPreviewFloatingControlVisible(visible: boolean) {
+			const elements = getPostPreviewFloatingControlElements();
+			if (!elements?.root) return;
+
+			elements.root.classList.toggle("hide", !visible);
+			elements.root.setAttribute("aria-hidden", visible ? "false" : "true");
+			if (!visible && typeof (window as any)._mizukiPostVariantFloatingPanelClose === "function") {
+				(window as any)._mizukiPostVariantFloatingPanelClose();
+			}
+			if (elements.select) {
+				elements.select.disabled = !visible;
+			}
+		}
+
+		function getPostPreviewLanguageDisplayName(rawLang: string | null | undefined) {
+			const normalized = normalizePostPreviewLang(rawLang);
+			const names: Record<string, string> = {
+				zh_cn: "简体中文",
+				zh_tw: "繁體中文",
+				en: "English",
+				ja: "日本語",
+				ko: "한국어",
+				es: "Español",
+				th: "ไทย",
+				vi: "Tiếng Việt",
+				tr: "Türkçe",
+				id: "Bahasa Indonesia",
+				fr: "Français",
+				de: "Deutsch",
+				ru: "Русский",
+				ar: "العربية",
+			};
+			return names[normalized] || normalized || "default";
+		}
+
+		function getPostPreviewOptionLabel(rawLang: string | null | undefined) {
+			const normalized = normalizePostPreviewLang(rawLang) || "default";
+			const root = document.querySelector<HTMLElement>(
+				"[data-post-variant-floating-root]",
+			);
+			const defaultLabel =
+				root?.dataset?.postVariantI18nDefaultLabel || "Default";
+			if (normalized === "default") return defaultLabel;
+			return getPostPreviewLanguageDisplayName(normalized);
+		}
+
+		function getPostPreviewBrowserLangCandidates() {
 		const rawList =
 			Array.isArray(navigator.languages) && navigator.languages.length > 0
 				? navigator.languages
@@ -231,18 +318,121 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 			if (base && !result.includes(base)) result.push(base);
 		}
 
-		return result;
-	}
+			return result;
+		}
 
-	function applyLocalizedPostPreviews() {
-		const cards = document.querySelectorAll<HTMLElement>(
-			"#post-list-container [data-post-preview-variants]",
-		);
-		if (!cards.length) return;
+		function ensurePreviewLanguageFloatingControl(cards: NodeListOf<HTMLElement>) {
+			const elements = getPostPreviewFloatingControlElements();
+			if (!elements?.select) return;
 
-		const candidates = getPostPreviewBrowserLangCandidates();
+			type PreviewVariant = {
+				lang?: string;
+				title?: string;
+				description?: string;
+			};
 
-		for (const card of cards) {
+			const options: Array<{ value: string; normalized: string; label: string }> = [];
+			const seen = new Set<string>();
+
+			for (const card of cards) {
+				const raw = card.dataset.postPreviewVariants;
+				if (!raw) continue;
+
+				let variants: PreviewVariant[] = [];
+				try {
+					variants = JSON.parse(raw);
+				} catch {
+					continue;
+				}
+				if (!Array.isArray(variants) || variants.length <= 1) continue;
+
+				for (const variant of variants) {
+					const rawLang = variant.lang || "default";
+					const normalized = normalizePostPreviewLang(rawLang) || "default";
+					if (seen.has(normalized)) continue;
+					seen.add(normalized);
+					options.push({
+						value: rawLang,
+						normalized,
+						label: getPostPreviewOptionLabel(rawLang),
+					});
+				}
+			}
+
+			const defaultIndex = options.findIndex((option) => option.normalized === "default");
+			if (defaultIndex > 0) {
+				const [defaultOption] = options.splice(defaultIndex, 1);
+				options.unshift(defaultOption);
+			}
+
+			const signature = options
+				.map((option) => `${option.normalized}:${option.value}`)
+				.join("|");
+
+			if (elements.select.dataset.previewVariantSignature !== signature) {
+				elements.select.innerHTML = "";
+				for (const option of options) {
+					const optionEl = document.createElement("option");
+					optionEl.value = option.value;
+					optionEl.textContent = option.label;
+					elements.select.appendChild(optionEl);
+				}
+				elements.select.dataset.previewVariantSignature = signature;
+			}
+
+			elements.select.onchange = (event) => {
+				const target = event.currentTarget as HTMLSelectElement | null;
+				const value = target?.value || "";
+				setStoredPostPreviewLangPreference(value);
+				applyLocalizedPostPreviews(value);
+			};
+
+			setPostPreviewFloatingControlVisible(options.length > 1);
+		}
+
+		function syncPreviewLanguageFloatingControl(currentLang: string) {
+			const elements = getPostPreviewFloatingControlElements();
+			if (!elements?.select) return;
+
+			const normalizedTarget = normalizePostPreviewLang(currentLang) || "default";
+			const options = Array.from(elements.select.options || []);
+			const matched = options.find(
+				(option) =>
+					(normalizePostPreviewLang(option.value) || "default") === normalizedTarget,
+			);
+
+			if (matched && elements.select.value !== matched.value) {
+				elements.select.value = matched.value;
+			}
+
+			if (elements.currentLabel) {
+				elements.currentLabel.textContent =
+					matched?.textContent?.trim() || getPostPreviewOptionLabel(currentLang);
+			}
+		}
+
+		function applyLocalizedPostPreviews(preferredLang?: string) {
+			const cards = document.querySelectorAll<HTMLElement>(
+				"#post-list-container [data-post-preview-variants]",
+			);
+			if (!cards.length) {
+				setPostPreviewFloatingControlVisible(false);
+				return;
+			}
+
+			ensurePreviewLanguageFloatingControl(cards);
+
+			const normalizedPreferred = normalizePostPreviewLang(preferredLang);
+			const storedPreference = getStoredPostPreviewLangPreference();
+			const candidates = [
+				normalizedPreferred,
+				storedPreference,
+				...getPostPreviewBrowserLangCandidates(),
+			].filter(Boolean);
+			let firstResolvedLang = "";
+			let hasMultiLangPreview = false;
+
+			for (const card of cards) {
 			const raw = card.dataset.postPreviewVariants;
 			if (!raw) continue;
 
@@ -251,12 +441,13 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 				title?: string;
 				description?: string;
 			}> = [];
-			try {
-				variants = JSON.parse(raw);
-			} catch {
-				continue;
-			}
-			if (!Array.isArray(variants) || variants.length <= 1) continue;
+				try {
+					variants = JSON.parse(raw);
+				} catch {
+					continue;
+				}
+				if (!Array.isArray(variants) || variants.length <= 1) continue;
+				hasMultiLangPreview = true;
 
 			const byLang = new Map<string, (typeof variants)[number]>();
 			let defaultVariant: (typeof variants)[number] | null = null;
@@ -269,11 +460,15 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 				if (lang === "default" && !defaultVariant) defaultVariant = variant;
 			}
 
-			let target =
-				candidates.map((lang) => byLang.get(lang)).find(Boolean) ||
-				defaultVariant ||
-				variants[0];
-			if (!target) continue;
+				let target =
+					candidates.map((lang) => byLang.get(lang)).find(Boolean) ||
+					defaultVariant ||
+					variants[0];
+				if (!target) continue;
+				if (!firstResolvedLang) {
+					firstResolvedLang =
+						normalizePostPreviewLang(target.lang || "") || "default";
+				}
 
 			const titleEl = card.querySelector<HTMLElement>("[data-post-preview-title]");
 			if (titleEl && typeof target.title === "string" && target.title.length > 0) {
@@ -299,22 +494,33 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 					link.setAttribute("aria-label", target.title);
 					link.setAttribute("title", target.title);
 				}
+				}
 			}
-		}
-	}
 
-	document.addEventListener("DOMContentLoaded", applyLocalizedPostPreviews);
-	if (document.readyState !== "loading") applyLocalizedPostPreviews();
+			if (!hasMultiLangPreview) {
+				setPostPreviewFloatingControlVisible(false);
+				return;
+			}
+
+			syncPreviewLanguageFloatingControl(
+				normalizedPreferred || storedPreference || firstResolvedLang || "default",
+			);
+		}
+
+		document.addEventListener("DOMContentLoaded", () =>
+			applyLocalizedPostPreviews(),
+		);
+		if (document.readyState !== "loading") applyLocalizedPostPreviews();
 
 	function setupLocalizedPreviewSwupListeners() {
 		if ((window as any)._localizedPostPreviewSwupBound) return;
 
 		function tryBind() {
 			if (typeof window !== "undefined" && (window as any).swup) {
-				(window as any).swup.hooks.on(
-					"content:replace",
-					() => requestAnimationFrame(applyLocalizedPostPreviews),
-				);
+					(window as any).swup.hooks.on(
+						"content:replace",
+						() => requestAnimationFrame(() => applyLocalizedPostPreviews()),
+					);
 				(window as any)._localizedPostPreviewSwupBound = true;
 				return true;
 			}
@@ -329,10 +535,16 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 				}
 			}, 100);
 		}
-	}
+		}
 
-	setTimeout(setupLocalizedPreviewSwupListeners, 200);
-</script>
+		setTimeout(setupLocalizedPreviewSwupListeners, 200);
+
+		window.addEventListener("storage", (event) => {
+			if (event.key === POST_VARIANT_LANG_STORAGE_KEY) {
+				requestAnimationFrame(() => applyLocalizedPostPreviews());
+			}
+		});
+	</script>
 
 <style>
 	/* 基础容器 */

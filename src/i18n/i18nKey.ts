@@ -17,6 +17,11 @@ enum I18nKey {
 	postList = "postList",
 	tableOfContents = "tableOfContents",
 	tocEmpty = "tocEmpty",
+	postLanguage = "postLanguage",
+	postLanguageCurrent = "postLanguageCurrent",
+	postLanguageNotSet = "postLanguageNotSet",
+	postLanguageNoOptions = "postLanguageNoOptions",
+	postLanguageDefault = "postLanguageDefault",
 
 	// 公告栏
 	announcement = "announcement",

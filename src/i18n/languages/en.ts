@@ -20,6 +20,11 @@ export const en: Translation = {
 	[Key.postList]: "Post List",
 	[Key.tableOfContents]: "Table of Contents",
 	[Key.tocEmpty]: "No table of contents",
+	[Key.postLanguage]: "Article Language",
+	[Key.postLanguageCurrent]: "Current",
+	[Key.postLanguageNotSet]: "Not set",
+	[Key.postLanguageNoOptions]: "No language options detected",
+	[Key.postLanguageDefault]: "Default",
 
 	// Announcement
 	[Key.announcement]: "Announcement",

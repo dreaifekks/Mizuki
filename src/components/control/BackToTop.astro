@@ -183,8 +183,27 @@ import { i18n } from "@i18n/translation";
       display: none
 
     .post-language-floating-control
+      display: block
       right: 1rem
       bottom: 5.75rem
+      z-index: 70
+      transform: translateX(0)
+
+      @supports (right: env(safe-area-inset-right))
+        right: calc(1rem + env(safe-area-inset-right))
+        bottom: calc(5.75rem + env(safe-area-inset-bottom))
+
+      &.hide
+        transform: translateX(1.5rem) scale(0.9)
+
+    .post-language-floating-btn
+      width: 3.25rem
+      height: 3.25rem
+      border-radius: 1rem
+      touch-action: manipulation
+
+      i
+        font-size: 1.35rem
 
     .post-language-floating-panel
       right: 0

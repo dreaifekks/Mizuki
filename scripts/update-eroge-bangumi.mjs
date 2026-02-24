@@ -12,7 +12,7 @@ const CONFIG_PATH = path.join(
 );
 const OUTPUT_FILE = path.join(
 	path.dirname(fileURLToPath(import.meta.url)),
-	"../src/data/bangumi-data.json",
+	"../src/data/eroge-bangumi-data.json",
 );
 
 async function getUserIdFromConfig() {
@@ -65,19 +65,19 @@ async function getBangumiAuthTokenFromConfig() {
 	}
 }
 
-async function getAnimeModeFromConfig() {
+async function getErogeModeFromConfig() {
 	try {
 		const configContent = await fs.readFile(CONFIG_PATH, "utf-8");
 		const match = configContent.match(
-			/anime:\s*\{[\s\S]*?mode:\s*["']([^"']+)["']/,
+			/eroge:\s*\{[\s\S]*?mode:\s*["']([^"']+)["']/,
 		);
 
 		if (match && match[1]) {
 			return match[1];
 		}
-		return "bangumi";
+		return "local";
 	} catch (error) {
-		return "bangumi";
+		return "local";
 	}
 }
 
@@ -133,7 +133,7 @@ async function fetchCollection(userId, type, authToken) {
 	console.log(`Fetching type: ${type}...`);
 
 	while (hasMore) {
-		const url = `${API_BASE}/v0/users/${userId}/collections?subject_type=2&type=${type}&limit=${limit}&offset=${offset}`;
+		const url = `${API_BASE}/v0/users/${userId}/collections?subject_type=4&type=${type}&limit=${limit}&offset=${offset}`;
 		try {
 			const response = await fetch(url, {
 				headers: getBangumiHeaders(authToken),
@@ -216,7 +216,7 @@ async function processData(items, status, authToken) {
 				item.subject?.name_cn || item.subject?.name || "Unknown Title",
 			status: status,
 			rating: rating,
-			cover: item.subject?.images?.medium || "/assets/anime/default.webp",
+			cover: item.subject?.images?.medium || "",
 			description: description,
 			episodes: `${totalEpisodes} episodes`,
 			year: year,
@@ -238,12 +238,12 @@ async function processData(items, status, authToken) {
 }
 
 async function main() {
-	console.log("Initializing Bangumi data update script...");
+	console.log("Initializing Eroge Bangumi data update script...");
 
-	const animeMode = await getAnimeModeFromConfig();
-	if (animeMode !== "bangumi") {
+	const erogeMode = await getErogeModeFromConfig();
+	if (erogeMode !== "bangumi") {
 		console.log(
-			`Detected current anime mode is "${animeMode}", skipping Bangumi data update.`,
+			`Detected current eroge mode is "${erogeMode}", skipping Bangumi data update.`,
 		);
 		return;
 	}
@@ -261,13 +261,13 @@ async function main() {
 		{ type: 5, status: "dropped" },
 	];
 
-	let finalAnimeList = [];
+	let finalErogeList = [];
 
 	for (const c of collections) {
 		const rawData = await fetchCollection(USER_ID, c.type, AUTH_TOKEN);
 		if (rawData.length > 0) {
 			const processed = await processData(rawData, c.status, AUTH_TOKEN);
-			finalAnimeList = [...finalAnimeList, ...processed];
+			finalErogeList = [...finalErogeList, ...processed];
 		}
 	}
 
@@ -278,9 +278,9 @@ async function main() {
 		await fs.mkdir(dir, { recursive: true });
 	}
 
-	await fs.writeFile(OUTPUT_FILE, JSON.stringify(finalAnimeList, null, 2));
+	await fs.writeFile(OUTPUT_FILE, JSON.stringify(finalErogeList, null, 2));
 	console.log(`\nUpdate complete! Data saved to: ${OUTPUT_FILE}`);
-	console.log(`Total collected: ${finalAnimeList.length} anime series`);
+	console.log(`Total collected: ${finalErogeList.length} eroge entries`);
 }
 
 main().catch((err) => {

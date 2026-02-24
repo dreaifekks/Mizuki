@@ -60,6 +60,7 @@ export type SiteConfig = {
 	// 特色页面开关配置
 	featurePages: {
 		anime: boolean; // 番剧页面开关
+		eroge: boolean; // Eroge 页面开关
 		diary: boolean; // 日记页面开关
 		friends: boolean; // 友链页面开关
 		projects: boolean; // 项目页面开关
@@ -109,6 +110,7 @@ export type SiteConfig = {
 	bangumi?: {
 		userId?: string; // Bangumi用户ID
 		fetchOnDev?: boolean;
+		authToken?: "env" | false; // 可选 Bearer Token 开关: "env" 读取环境变量 BANGUMI_AUTH_TOKEN，false 表示不使用
 	};
 
 	// 添加bilibili配置
@@ -122,6 +124,11 @@ export type SiteConfig = {
 	// 添加番剧页面配置
 	anime?: {
 		mode?: "bangumi" | "local" | "bilibili"; // 番剧页面模式
+	};
+
+	// 添加 eroge 页面配置
+	eroge?: {
+		mode?: "bangumi" | "local"; // Eroge 页面模式
 	};
 
 	// 标签样式配置

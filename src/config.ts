@@ -39,6 +39,7 @@ export const siteConfig: SiteConfig = {
 	// 特色页面开关配置（关闭未使用的页面有助于提升 SEO，关闭后请记得在 navbarConfig 中移除对应链接）
 	featurePages: {
 		anime: true, // 番剧页面开关
+		eroge: true, // Eroge 页面开关
 		diary: true, // 日记页面开关
 		friends: true, // 友链页面开关
 		projects: true, // 项目页面开关
@@ -70,6 +71,7 @@ export const siteConfig: SiteConfig = {
 	bangumi: {
 		userId: "lagos", // 在此处设置你的Bangumi用户ID，可以设置为 "sai" 测试
 		fetchOnDev: false, // 是否在开发环境下获取 Bangumi 数据（默认 false），获取前先执行 pnpm build 构建 json 文件
+		authToken: "env", // Bangumi Bearer Token 开关（可选）："env" 从环境变量 BANGUMI_AUTH_TOKEN 读取；false 为跳过
 	},
 
 	bilibili: {
@@ -87,6 +89,10 @@ export const siteConfig: SiteConfig = {
 
 	anime: {
 		mode: "bangumi", // 番剧页面模式："bangumi" 使用Bangumi API，"local" 使用本地配置，"bilibili" 使用Bilibili API
+	},
+
+	eroge: {
+		mode: "bangumi", // Eroge 页面模式："bangumi" 使用 Bangumi API(subject_type=4)，"local" 使用本地配置文件
 	},
 
 	// 文章列表布局配置
@@ -305,6 +311,11 @@ export const navBarConfig: NavBarConfig = {
 					name: "Anime",
 					url: "/anime/",
 					icon: "material-symbols:movie",
+				},
+				{
+					name: "Eroge",
+					url: "/eroge/",
+					icon: "material-symbols:videogame-asset",
 				},
 				{
 					name: "Diary",

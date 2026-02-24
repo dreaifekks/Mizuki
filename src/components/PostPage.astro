@@ -416,7 +416,13 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 				"#post-list-container [data-post-preview-variants]",
 			);
 			if (!cards.length) {
-				setPostPreviewFloatingControlVisible(false);
+				const postContainer = document.getElementById("post-container");
+				const hasActivePostVariantPage =
+					!!postContainer &&
+					postContainer.dataset.postVariantSwitchEnabled === "true";
+				if (!hasActivePostVariantPage) {
+					setPostPreviewFloatingControlVisible(false);
+				}
 				return;
 			}
 
@@ -512,6 +518,25 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 		);
 		if (document.readyState !== "loading") applyLocalizedPostPreviews();
 
+	function scheduleApplyLocalizedPostPreviews() {
+		requestAnimationFrame(() => applyLocalizedPostPreviews());
+	}
+
+	function setupLocalizedPreviewAstroListeners() {
+		if ((window as any)._localizedPostPreviewAstroBound) return;
+		document.addEventListener(
+			"astro:page-load",
+			scheduleApplyLocalizedPostPreviews,
+		);
+		document.addEventListener(
+			"astro:after-swap",
+			scheduleApplyLocalizedPostPreviews,
+		);
+		(window as any)._localizedPostPreviewAstroBound = true;
+	}
+
+	setupLocalizedPreviewAstroListeners();
+
 	function setupLocalizedPreviewSwupListeners() {
 		if ((window as any)._localizedPostPreviewSwupBound) return;
 
@@ -519,7 +544,11 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 			if (typeof window !== "undefined" && (window as any).swup) {
 					(window as any).swup.hooks.on(
 						"content:replace",
-						() => requestAnimationFrame(() => applyLocalizedPostPreviews()),
+						scheduleApplyLocalizedPostPreviews,
+					);
+					(window as any).swup.hooks.on(
+						"page:view",
+						scheduleApplyLocalizedPostPreviews,
 					);
 				(window as any)._localizedPostPreviewSwupBound = true;
 				return true;

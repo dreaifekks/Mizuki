@@ -624,7 +624,12 @@ const jsonLd = {
 	        function applyPostVariantSelection(preferredLang, options) {
 	            const container = document.getElementById("post-container");
 	            if (!container) {
-	                setPostVariantFloatingControlVisible(false);
+	                const hasPreviewVariantCards = !!document.querySelector(
+	                    "#post-list-container [data-post-preview-variants]",
+	                );
+	                if (!hasPreviewVariantCards) {
+	                    setPostVariantFloatingControlVisible(false);
+	                }
 	                return;
 	            }
 	            if (container.dataset.postVariantSwitchEnabled !== "true") {
@@ -733,14 +738,37 @@ const jsonLd = {
             applyPostVariantByBrowserLanguage();
         }
 
+        function scheduleApplyPostVariantByBrowserLanguage() {
+            requestAnimationFrame(applyPostVariantByBrowserLanguage);
+        }
+
+        function setupPostVariantAstroNavigationListeners() {
+            if (window._mizukiPostVariantAstroNavBound) return;
+            document.addEventListener(
+                "astro:page-load",
+                scheduleApplyPostVariantByBrowserLanguage,
+            );
+            document.addEventListener(
+                "astro:after-swap",
+                scheduleApplyPostVariantByBrowserLanguage,
+            );
+            window._mizukiPostVariantAstroNavBound = true;
+        }
+        setupPostVariantAstroNavigationListeners();
+
         function setupPostVariantSwupListener() {
             if (window._mizukiPostVariantSwupBound) return;
 
             function tryBind() {
                 if (window.swup && window.swup.hooks) {
-                    window.swup.hooks.on("content:replace", () => {
-                        requestAnimationFrame(applyPostVariantByBrowserLanguage);
-                    });
+                    window.swup.hooks.on(
+                        "content:replace",
+                        scheduleApplyPostVariantByBrowserLanguage,
+                    );
+                    window.swup.hooks.on(
+                        "page:view",
+                        scheduleApplyPostVariantByBrowserLanguage,
+                    );
                     window._mizukiPostVariantSwupBound = true;
                     return true;
                 }

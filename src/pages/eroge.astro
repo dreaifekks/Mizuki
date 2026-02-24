@@ -1,7 +1,6 @@
 ---
 import ImageWrapper from "../components/misc/ImageWrapper.astro";
 import { siteConfig } from "../config";
-import localErogeList from "../data/eroge";
 import I18nKey from "../i18n/i18nKey";
 import { i18n } from "../i18n/translation";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
@@ -46,6 +45,18 @@ type AnimeSourceConfig =
 			fetchOnDev?: boolean;
 			emptyDescription?: string; // 可选：特定源的空状态描述
 	  };
+
+// 使用 glob 读取本地 eroge 数据，避免构建环境中缺失文件时在静态 import 解析阶段直接失败
+const localErogeModuleMap = import.meta.glob("../data/eroge.ts", {
+	eager: true,
+}) as Record<string, { default?: AnimeItem[] }>;
+const localErogeList = Array.isArray(localErogeModuleMap["../data/eroge.ts"]?.default)
+	? localErogeModuleMap["../data/eroge.ts"].default
+	: [];
+
+if (!localErogeModuleMap["../data/eroge.ts"]) {
+	console.warn("[Eroge] Local data file module not found: src/data/eroge.ts");
+}
 
 if (!siteConfig.featurePages.eroge) {
 	return Astro.redirect("/404/");

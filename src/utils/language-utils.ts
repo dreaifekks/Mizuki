@@ -36,5 +36,37 @@ export function getLanguageDisplayName(langCode: string): string {
 		arabic: "العربية",
 	};
 
-	return languageNames[langCode] || langCode;
+	const normalized = String(langCode || "").trim();
+	if (!normalized) return "";
+
+	const normalizedUnderscore = normalized.toLowerCase().replace(/-/g, "_");
+	const aliasMap: Record<string, string> = {
+		cn: "zh_CN",
+		tw: "zh_TW",
+		jp: "ja",
+		ja_jp: "ja",
+		en_us: "en",
+		en_gb: "en",
+		en_au: "en",
+		zh_cn: "zh_CN",
+		zh_tw: "zh_TW",
+		zh_hans: "zh_CN",
+		zh_sg: "zh_CN",
+		zh_hant: "zh_TW",
+		zh_hk: "zh_TW",
+		zh_mo: "zh_TW",
+	};
+
+	const candidates = [
+		normalized,
+		aliasMap[normalizedUnderscore],
+		normalizedUnderscore,
+	].filter(Boolean);
+
+	for (const candidate of candidates) {
+		const displayName = languageNames[candidate];
+		if (displayName) return displayName;
+	}
+
+	return normalized;
 }

@@ -20,6 +20,11 @@ export const zh_CN: Translation = {
 	[Key.postList]: "文章列表",
 	[Key.tableOfContents]: "目录",
 	[Key.tocEmpty]: "当前页面没有目录",
+	[Key.postLanguage]: "文章语言",
+	[Key.postLanguageCurrent]: "当前选择",
+	[Key.postLanguageNotSet]: "未设置",
+	[Key.postLanguageNoOptions]: "未检测到语言选项",
+	[Key.postLanguageDefault]: "默认",
 
 	// 公告栏
 	[Key.announcement]: "公告",

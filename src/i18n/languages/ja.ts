@@ -20,6 +20,11 @@ export const ja: Translation = {
 	[Key.postList]: "投稿の一覧",
 	[Key.tableOfContents]: "目次",
 	[Key.tocEmpty]: "目次はありません",
+	[Key.postLanguage]: "記事の言語",
+	[Key.postLanguageCurrent]: "現在の選択",
+	[Key.postLanguageNotSet]: "未設定",
+	[Key.postLanguageNoOptions]: "言語オプションが見つかりません",
+	[Key.postLanguageDefault]: "既定",
 
 	// お知らせ
 	[Key.announcement]: "お知らせ",

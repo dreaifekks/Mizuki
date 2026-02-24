@@ -20,6 +20,11 @@ export const zh_TW: Translation = {
 	[Key.postList]: "文章列表",
 	[Key.tableOfContents]: "目錄",
 	[Key.tocEmpty]: "當前頁面沒有目錄",
+	[Key.postLanguage]: "文章語言",
+	[Key.postLanguageCurrent]: "目前選擇",
+	[Key.postLanguageNotSet]: "未設定",
+	[Key.postLanguageNoOptions]: "未偵測到語言選項",
+	[Key.postLanguageDefault]: "預設",
 
 	// 公告欄
 	[Key.announcement]: "公告",

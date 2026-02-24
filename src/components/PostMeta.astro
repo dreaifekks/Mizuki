@@ -19,6 +19,7 @@ export interface Props {
 	words?: number;
 	minutes?: number;
 	showWordCount?: boolean;
+	enablePageViewsScript?: boolean;
 }
 
 const {
@@ -34,6 +35,7 @@ const {
 	showOnlyBasicMeta = false,
 	words,
 	showWordCount = false,
+	enablePageViewsScript = true,
 } = Astro.props;
 ---
 
@@ -41,7 +43,7 @@ const {
     <!-- publish date -->
     <div class="flex items-center">
         <div class="meta-icon">
-            <Icon name="material-symbols:calendar-today-outline-rounded" class="text-xl"></Icon>
+            <Icon name="material-symbols:calendar-today-outline-rounded" class="text-xl" is:inline></Icon>
         </div>
         <span class="text-50 text-sm font-medium">{formatDateToYYYYMMDD(published)}</span>
     </div>
@@ -50,7 +52,7 @@ const {
     {!hideUpdateDate && updated && updated.getTime() !== published.getTime() && (
         <div class="flex items-center">
             <div class="meta-icon">
-                <Icon name="material-symbols:edit-calendar-outline-rounded" class="text-xl"></Icon>
+                <Icon name="material-symbols:edit-calendar-outline-rounded" class="text-xl" is:inline></Icon>
             </div>
             <span class="text-50 text-sm font-medium">{formatDateToYYYYMMDD(updated)}</span>
         </div>
@@ -59,7 +61,7 @@ const {
     <!-- categories -->
     <div class="flex items-center">
         <div class="meta-icon">
-            <Icon name="material-symbols:book-2-outline-rounded" class="text-xl"></Icon>
+            <Icon name="material-symbols:book-2-outline-rounded" class="text-xl" is:inline></Icon>
         </div>
         <div class="flex flex-row flex-nowrap items-center">
             <a href={getCategoryUrl(category || '')} aria-label={`View all posts in the ${category} category`}
@@ -74,7 +76,7 @@ const {
     {showWordCount && words && (
         <div class="flex items-center">
             <div class="meta-icon">
-                <Icon name="material-symbols:article-outline-rounded" class="text-xl"></Icon>
+                <Icon name="material-symbols:article-outline-rounded" class="text-xl" is:inline></Icon>
             </div>
             <span class="text-50 text-sm font-medium">
                 {words} {words > 1 ? i18n(I18nKey.wordsCount) : i18n(I18nKey.wordCount)}
@@ -86,7 +88,7 @@ const {
     {!showOnlyBasicMeta && (
         <div class:list={["items-center", {"flex": !hideTagsForMobile, "hidden md:flex": hideTagsForMobile}]}>
             <div class="meta-icon">
-                <Icon name="material-symbols:tag-rounded" class="text-xl"></Icon>
+                <Icon name="material-symbols:tag-rounded" class="text-xl" is:inline></Icon>
             </div>
             <div class="flex flex-row flex-nowrap items-center">
                 {(tags && tags.length > 0) && tags.map((tag, i) => (
@@ -108,14 +110,14 @@ const {
     {!isHome && id && (
         <div class="flex items-center umami-page-views hidden" data-id={id}>
             <div class="meta-icon">
-                <Icon name="material-symbols:visibility-outline-rounded" class="text-xl"></Icon>
+                <Icon name="material-symbols:visibility-outline-rounded" class="text-xl" is:inline></Icon>
             </div>
             <span class="text-50 text-sm font-medium page-views-display">{i18n(I18nKey.pageViewsLoading)}</span>
         </div>
     )}
 </div>
 
-{!isHome && id && (
+{!isHome && id && enablePageViewsScript && (
 <script is:inline define:vars={{
     pageViewsText: i18n(I18nKey.profileStatsPageViews),
     visitsText: i18n(I18nKey.profileStatsVisits)
@@ -125,31 +127,53 @@ const {
     }
 
     async function fetchPageViews() {
-        const container = document.querySelector('.umami-page-views');
-        
+        const containers = Array.from(
+            document.querySelectorAll('.umami-page-views[data-id]'),
+        );
+        if (containers.length === 0) return;
+
         if (!window.oddmisc) {
-            container?.classList.add('hidden');
+            containers.forEach((container) => container.classList.add('hidden'));
             return;
         }
 
-        const id = container?.dataset.id;
-        if (!id) return;
-
-        try {
-            const stats = await window.oddmisc.getStats(`/posts/${id}/`);
-            const pageViews = stats.pageviews || 0;
-            const visits = stats.visits || 0;
-
-            if (pageViews === 0 && visits === 0) {
-                container?.classList.add('hidden');
-                return;
+        const containersById = new Map();
+        for (const container of containers) {
+            const postId = container.dataset.id;
+            if (!postId) continue;
+            if (!containersById.has(postId)) {
+                containersById.set(postId, []);
             }
+            containersById.get(postId).push(container);
+        }
 
-            container?.classList.remove('hidden');
-            container.querySelector('.page-views-display').textContent = generateStatsText(pageViews, visits);
-        } catch (error) {
-            console.error('Error fetching page views:', error);
-            container?.classList.add('hidden');
+        for (const [postId, relatedContainers] of containersById.entries()) {
+            try {
+                const stats = await window.oddmisc.getStats(`/posts/${postId}/`);
+                const pageViews = stats.pageviews || 0;
+                const visits = stats.visits || 0;
+
+                if (pageViews === 0 && visits === 0) {
+                    relatedContainers.forEach((container) =>
+                        container.classList.add('hidden'),
+                    );
+                    continue;
+                }
+
+                const text = generateStatsText(pageViews, visits);
+                relatedContainers.forEach((container) => {
+                    container.classList.remove('hidden');
+                    const display = container.querySelector('.page-views-display');
+                    if (display) {
+                        display.textContent = text;
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching page views:', error);
+                relatedContainers.forEach((container) =>
+                    container.classList.add('hidden'),
+                );
+            }
         }
     }
 

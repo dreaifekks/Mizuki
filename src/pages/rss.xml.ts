@@ -127,6 +127,11 @@ export async function GET(context: APIContext) {
 		description: siteConfig.subtitle || "No description",
 		site: context.site,
 		items: feed,
-		customData: `<language>${siteConfig.lang}</language>`,
+		customData: `<language>${siteConfig.lang}</language>
+    <follow_challenge>
+        <feedId>252828395167014912</feedId>
+        <userId>244409386037213184</userId>
+    </follow_challenge>`,
 	});
 }
+

@@ -5,6 +5,10 @@ User-agent: *
 Disallow: /
 Allow: /$
 Allow: /posts/
+Allow: /archive/
+Allow: /about/
+Allow: /friends/
+Allow: /*.xml
 
 Sitemap: ${new URL("sitemap-index.xml", import.meta.env.SITE).href}
 `.trim();
@@ -16,3 +20,4 @@ export const GET: APIRoute = () => {
 		},
 	});
 };
+

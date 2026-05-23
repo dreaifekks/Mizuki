@@ -1,4 +1,6 @@
 ---
+import fs from "node:fs";
+import path from "node:path";
 import { Icon } from "astro-icon/components";
 
 import { navBarConfig, siteConfig } from "../../../config";
@@ -86,30 +88,42 @@ function filterLinksByFeaturePages(
 
 const links: NavBarLink[] = filterLinksByFeaturePages(navBarConfig.links);
 
+const isExternalAsset = (asset?: string) =>
+	asset?.match(/^(http|https|\/\/|data:)/);
+
+const publicAssetExists = (asset?: string) => {
+	if (!asset || isExternalAsset(asset)) {
+		return false;
+	}
+	const publicPath = asset.split(/[?#]/)[0]?.replace(/^\/+/, "");
+	if (!publicPath || publicPath.includes("..")) {
+		return false;
+	}
+	return fs.existsSync(path.join(process.cwd(), "public", publicPath));
+};
+
 const rawLogo = siteConfig.navbarTitle?.logo;
-const logoSrc = rawLogo?.match(/^(http|https|\/\/)/)
+const logoSrc = isExternalAsset(rawLogo)
 	? rawLogo
 	: rawLogo
 		? url(rawLogo)
 		: "";
 
 const rawIcon = siteConfig.navbarTitle?.icon;
-const iconSrc = rawIcon?.match(/^(http|https|\/\/)/)
+const iconSrc = isExternalAsset(rawIcon)
 	? rawIcon
 	: rawIcon
 		? url(rawIcon)
 		: "";
 
-const isLogoExternal = rawLogo?.match(/^(http|https|\/\/)/);
-const isIconExternal = rawIcon?.match(/^(http|https|\/\/)/);
-const hasLogoPngFallback = rawLogo?.endsWith(".png") && !isLogoExternal;
-const hasIconPngFallback = rawIcon?.endsWith(".png") && !isIconExternal;
-const logoWebpSrc = hasLogoPngFallback
-	? logoSrc.replace(/\.png$/i, ".webp")
-	: logoSrc;
-const iconWebpSrc = hasIconPngFallback
-	? iconSrc.replace(/\.png$/i, ".webp")
-	: iconSrc;
+const logoWebpRaw = rawLogo?.replace(/\.png$/i, ".webp");
+const iconWebpRaw = rawIcon?.replace(/\.png$/i, ".webp");
+const hasLogoWebpFallback =
+	rawLogo?.endsWith(".png") && publicAssetExists(logoWebpRaw);
+const hasIconWebpFallback =
+	rawIcon?.endsWith(".png") && publicAssetExists(iconWebpRaw);
+const logoWebpSrc = hasLogoWebpFallback && logoWebpRaw ? url(logoWebpRaw) : "";
+const iconWebpSrc = hasIconWebpFallback && iconWebpRaw ? url(iconWebpRaw) : "";
 const currentLocalePath = getCurrentLocalePath();
 const currentLocale =
 	SUPPORTED_LOCALES.find((locale) => locale.path === currentLocalePath) ||
@@ -128,7 +142,7 @@ const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
 				{/* 使用navbarTitle配置或默认配置 */}
                 {siteConfig.navbarTitle ? (
                     siteConfig.navbarTitle.mode === "logo" ? (
-                        hasLogoPngFallback ? (
+                        hasLogoWebpFallback ? (
                             <picture>
                                 <source srcset={logoWebpSrc} type="image/webp" />
                                 <img src={logoSrc} alt={siteConfig.navbarTitle.text} class="h-[2.5rem] md:h-[3.25rem] md:[.enable-banner_&]:h-[2.5rem] md:[.enable-banner_&]:group-[.scrolled]:h-[3.25rem] max-w-full object-contain transition-all duration-300" loading="lazy" />
@@ -138,7 +152,7 @@ const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
                         )
                     ) : (
                         <>
-                            {hasIconPngFallback ? (
+                            {hasIconWebpFallback ? (
                                 <picture>
                                     <source srcset={iconWebpSrc} type="image/webp" />
                                     <img src={iconSrc} alt="" class="h-[1.75rem] w-[1.75rem] mr-2 object-contain" loading="lazy" />

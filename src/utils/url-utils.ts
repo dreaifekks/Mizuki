@@ -1,9 +1,15 @@
 import type { CollectionEntry } from "astro:content";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
+import {
+	getCurrentLocaleContext,
+	getCurrentLocalePath,
+	withLocalePrefix,
+} from "@i18n/locale";
 
 import { permalinkConfig } from "../config";
 import { generatePermalinkSlug } from "./permalink-utils";
+import { getCanonicalPostSlugFromId } from "./post-variant-utils";
 
 /**
  * 移除文件扩展名（.md, .mdx, .markdown）
@@ -27,13 +33,13 @@ function joinUrl(...parts: string[]): string {
 export function getPostUrlBySlug(slug: string): string {
 	// 移除文件扩展名（如 .md, .mdx 等）
 	const slugWithoutExt = removeFileExtension(slug);
-	return url(`/posts/${slugWithoutExt}/`);
+	return localizedUrl(`/posts/${getCanonicalPostSlugFromId(slugWithoutExt)}/`);
 }
 
 export function getPostUrlByAlias(alias: string): string {
 	// 移除开头的斜杠并确保固定链接在 /posts/ 路径下
 	const cleanAlias = alias.replace(/^\/+/, "");
-	return url(`/posts/${cleanAlias}/`);
+	return localizedUrl(`/posts/${cleanAlias}/`);
 }
 
 export function getPostUrl(post: CollectionEntry<"posts">): string;
@@ -46,13 +52,13 @@ export function getPostUrl(post: any): string {
 	// 如果文章有自定义 permalink，优先使用（在根目录下）
 	if (post.data.permalink) {
 		const slug = post.data.permalink.replace(/^\/+/, "").replace(/\/+$/, "");
-		return url(`/${slug}/`);
+		return localizedUrl(`/${slug}/`);
 	}
 
 	// 如果全局 permalink 功能启用，使用生成的 slug（在根目录下）
 	if (permalinkConfig.enable) {
 		const slug = generatePermalinkSlug(post);
-		return url(`/${slug}/`);
+		return localizedUrl(`/${slug}/`);
 	}
 
 	// 如果文章有 alias，使用 alias（在 /posts/ 下）
@@ -61,14 +67,14 @@ export function getPostUrl(post: any): string {
 	}
 
 	// 否则使用默认的 slug 路径
-	return getPostUrlBySlug(post.id);
+	return localizedUrl(`/posts/${getCanonicalPostSlugFromId(post)}/`);
 }
 
 export function getTagUrl(tag: string): string {
 	if (!tag) {
-		return url("/archive/");
+		return localizedUrl("/archive/");
 	}
-	return url(`/archive/?tag=${encodeURIComponent(tag.trim())}`);
+	return localizedUrl(`/archive/?tag=${encodeURIComponent(tag.trim())}`);
 }
 
 export function getCategoryUrl(category: string | null): string {
@@ -77,9 +83,9 @@ export function getCategoryUrl(category: string | null): string {
 		category.trim() === "" ||
 		category.trim().toLowerCase() === i18n(I18nKey.uncategorized).toLowerCase()
 	) {
-		return url("/archive/?uncategorized=true");
+		return localizedUrl("/archive/?uncategorized=true");
 	}
-	return url(`/archive/?category=${encodeURIComponent(category.trim())}`);
+	return localizedUrl(`/archive/?category=${encodeURIComponent(category.trim())}`);
 }
 
 export function getDir(path: string): string {
@@ -98,4 +104,11 @@ export function getFileDirFromPath(filePath: string): string {
 
 export function url(path: string) {
 	return joinUrl("", import.meta.env.BASE_URL, path);
+}
+
+export function localizedUrl(path: string) {
+	const context = getCurrentLocaleContext();
+	return url(
+		withLocalePrefix(path, getCurrentLocalePath(), context.hasLocalePrefix),
+	);
 }

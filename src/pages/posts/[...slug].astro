@@ -19,7 +19,7 @@ import MainGridLayout from "@layouts/MainGridLayout.astro";
 import { getRelatedPosts, getSortedPosts } from "@utils/content-utils";
 import { hasCustomPermalink, initPostIdMap } from "@utils/permalink-utils";
 import { getPostPublicDescription } from "@utils/post-card-content";
-import { getFileDirFromPath, removeFileExtension } from "@utils/url-utils";
+import { getFileDirFromPath } from "@utils/url-utils";
 import {
 	licenseConfig,
 	permalinkConfig,
@@ -31,22 +31,29 @@ import {
 import Image from "../../components/atoms/Image/Image.astro";
 import Encryptor from "../../components/features/auth/Encryptor.astro";
 import { profileConfig, siteConfig } from "../../config";
+import {
+	getDefaultLocaleInfo,
+	setCurrentLocaleContext,
+} from "../../i18n/locale";
 import { formatDateToYYYYMMDD } from "../../utils/date-utils";
+import { getCanonicalPostSlugFromId } from "../../utils/post-variant-utils";
 
 export async function getStaticPaths() {
-	const blogEntries = await getSortedPosts();
+	const defaultLocale = getDefaultLocaleInfo();
+	setCurrentLocaleContext(defaultLocale.path, false);
+	const blogEntries = await getSortedPosts(defaultLocale.lang);
 
 	// 初始化文章 ID 映射（用于 %post_id% 占位符）
 	initPostIdMap(blogEntries);
 
 	const paths: {
 		params: { slug: string };
-		props: { entry: CollectionEntry<"posts"> };
+		props: { entry: CollectionEntry<"posts">; localePath: string };
 	}[] = [];
 
 	for (const entry of blogEntries) {
-		// 将 id 转换为 slug（移除扩展名）以匹配路由参数
-		const defaultSlug = removeFileExtension(entry.id);
+		// 将 id 转换为 canonical slug（移除语言后缀和扩展名）以匹配路由参数
+		const defaultSlug = getCanonicalPostSlugFromId(entry);
 
 		// 如果文章有自定义 permalink，不在 /posts/ 下创建路径
 		// 而是通过根目录的 [permalink].astro 处理
@@ -54,7 +61,7 @@ export async function getStaticPaths() {
 			// 仍然需要在 /posts/ 下创建默认路径以便兼容旧链接
 			paths.push({
 				params: { slug: defaultSlug },
-				props: { entry },
+				props: { entry, localePath: defaultLocale.path },
 			});
 			continue;
 		}
@@ -65,14 +72,14 @@ export async function getStaticPaths() {
 			// 仍然保留默认 slug 路径以便兼容旧链接
 			paths.push({
 				params: { slug: defaultSlug },
-				props: { entry },
+				props: { entry, localePath: defaultLocale.path },
 			});
 		} else {
 			// 全局 permalink 功能未启用
 			// 为每篇文章创建默认的 slug 路径
 			paths.push({
 				params: { slug: defaultSlug },
-				props: { entry },
+				props: { entry, localePath: defaultLocale.path },
 			});
 
 			// 如果文章有 alias，也创建对应的路径
@@ -85,7 +92,7 @@ export async function getStaticPaths() {
 				}
 				paths.push({
 					params: { slug: alias },
-					props: { entry },
+					props: { entry, localePath: defaultLocale.path },
 				});
 			}
 		}
@@ -95,6 +102,7 @@ export async function getStaticPaths() {
 }
 
 const { entry } = Astro.props;
+setCurrentLocaleContext(Astro.props.localePath);
 const { Content, headings } = await render(entry);
 const { remarkPluginFrontmatter } = await render(entry);
 
@@ -200,7 +208,7 @@ const jsonLd = {
 	datePublished: formatDateToYYYYMMDD(entry.data.published),
 	inLanguage: entry.data.lang
 		? entry.data.lang.replace("_", "-")
-		: siteConfig.lang.replace("_", "-"),
+		: Astro.props.localePath,
 	// TODO include cover image here
 };
 ---

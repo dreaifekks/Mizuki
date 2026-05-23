@@ -5,9 +5,11 @@ import { PageHeader } from "@components/features/page-header";
 import Markdown from "@components/misc/Markdown.astro";
 
 import I18nKey from "../i18n/i18nKey";
+import { setCurrentLocaleContext } from "../i18n/locale";
 import { i18n } from "../i18n/translation";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
 
+setCurrentLocaleContext(Astro.props.localePath);
 const aboutPost = await getEntry("spec", "about");
 
 if (!aboutPost) {

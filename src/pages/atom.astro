@@ -1,5 +1,8 @@
 ---
 import FeedInfo from "@components/widgets/feed/FeedInfo.astro";
+import { setCurrentLocaleContext } from "../i18n/locale";
+
+setCurrentLocaleContext(Astro.props.localePath);
 ---
 
 <FeedInfo type="atom" />

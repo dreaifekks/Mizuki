@@ -1,0 +1,169 @@
+---
+import type { CollectionEntry } from "astro:content";
+import AboutPage from "../about.astro";
+import AlbumsPage from "../albums.astro";
+import AlbumPage from "../albums/[id]/index.astro";
+import AnimePage from "../anime.astro";
+import ArchivePage from "../archive.astro";
+import AtomPage from "../atom.astro";
+import DevicesPage from "../devices.astro";
+import DiaryPage from "../diary.astro";
+import ErogePage from "../eroge.astro";
+import FriendsPage from "../friends.astro";
+import PermalinkPage from "../[...permalink].astro";
+import PostPage from "../posts/[...slug].astro";
+import ProjectsPage from "../projects.astro";
+import RssPage from "../rss.astro";
+import SkillsPage from "../skills.astro";
+import TimelinePage from "../timeline.astro";
+
+import { permalinkConfig } from "../../config";
+import {
+	SUPPORTED_LOCALES,
+	type SupportedLocalePath,
+	setCurrentLocaleContext,
+} from "../../i18n/locale";
+import type { AlbumGroup } from "../../types/album";
+import { scanAlbums } from "../../utils/album-scanner";
+import { getSortedPosts } from "../../utils/content-utils";
+import {
+	generatePermalinkSlug,
+	hasCustomPermalink,
+	initPostIdMap,
+} from "../../utils/permalink-utils";
+import { getCanonicalPostSlugFromId } from "../../utils/post-variant-utils";
+
+type PageKind =
+	| "archive"
+	| "about"
+	| "friends"
+	| "anime"
+	| "eroge"
+	| "diary"
+	| "albums"
+	| "album"
+	| "projects"
+	| "skills"
+	| "timeline"
+	| "devices"
+	| "rss"
+	| "atom"
+	| "post"
+	| "permalink";
+
+interface LocalizedProps {
+	localePath: SupportedLocalePath;
+	kind: PageKind;
+	entry?: CollectionEntry<"posts">;
+	album?: AlbumGroup;
+}
+
+export async function getStaticPaths() {
+	const staticPages: Record<string, PageKind> = {
+		archive: "archive",
+		about: "about",
+		friends: "friends",
+		anime: "anime",
+		eroge: "eroge",
+		diary: "diary",
+		albums: "albums",
+		projects: "projects",
+		skills: "skills",
+		timeline: "timeline",
+		devices: "devices",
+		rss: "rss",
+		atom: "atom",
+	};
+	const paths: {
+		params: { locale: string; localized: string };
+		props: LocalizedProps;
+	}[] = [];
+	const albums = await scanAlbums();
+
+	for (const locale of SUPPORTED_LOCALES) {
+		setCurrentLocaleContext(locale.path, true);
+
+		for (const [slug, kind] of Object.entries(staticPages)) {
+			paths.push({
+				params: { locale: locale.path, localized: slug },
+				props: { localePath: locale.path, kind },
+			});
+		}
+
+		for (const album of albums) {
+			paths.push({
+				params: { locale: locale.path, localized: `albums/${album.id}` },
+				props: { localePath: locale.path, kind: "album", album },
+			});
+		}
+
+		const posts = await getSortedPosts(locale.lang);
+		initPostIdMap(posts);
+
+		for (const entry of posts) {
+			const defaultSlug = getCanonicalPostSlugFromId(entry);
+			paths.push({
+				params: { locale: locale.path, localized: `posts/${defaultSlug}` },
+				props: { localePath: locale.path, kind: "post", entry },
+			});
+
+			if (entry.data.alias) {
+				let alias = entry.data.alias.replace(/^\/+/, "").replace(/\/+$/, "");
+				if (alias.startsWith("posts/")) {
+					alias = alias.replace(/^posts\//, "");
+				}
+				paths.push({
+					params: { locale: locale.path, localized: `posts/${alias}` },
+					props: { localePath: locale.path, kind: "post", entry },
+				});
+			}
+
+			let permalink: string | null = null;
+			if (hasCustomPermalink(entry)) {
+				permalink =
+					entry.data.permalink?.replace(/^\/+/, "").replace(/\/+$/, "") ??
+					null;
+			} else if (permalinkConfig.enable) {
+				permalink = generatePermalinkSlug(entry);
+			}
+
+			if (permalink) {
+				paths.push({
+					params: { locale: locale.path, localized: permalink },
+					props: { localePath: locale.path, kind: "permalink", entry },
+				});
+			}
+		}
+	}
+
+	return paths;
+}
+
+const { localePath, kind, entry, album } = Astro.props as LocalizedProps;
+setCurrentLocaleContext(localePath, true);
+---
+
+{kind === "archive" && <ArchivePage localePath={localePath} />}
+{kind === "about" && <AboutPage localePath={localePath} />}
+{kind === "friends" && <FriendsPage localePath={localePath} />}
+{kind === "anime" && <AnimePage localePath={localePath} />}
+{kind === "eroge" && <ErogePage localePath={localePath} />}
+{kind === "diary" && <DiaryPage localePath={localePath} />}
+{kind === "albums" && <AlbumsPage localePath={localePath} />}
+{
+	kind === "album" && album && (
+		<AlbumPage album={album} localePath={localePath} />
+	)
+}
+{kind === "projects" && <ProjectsPage localePath={localePath} />}
+{kind === "skills" && <SkillsPage localePath={localePath} />}
+{kind === "timeline" && <TimelinePage localePath={localePath} />}
+{kind === "devices" && <DevicesPage localePath={localePath} />}
+{kind === "rss" && <RssPage localePath={localePath} />}
+{kind === "atom" && <AtomPage localePath={localePath} />}
+{kind === "post" && entry && <PostPage entry={entry} localePath={localePath} />}
+{
+	kind === "permalink" && entry && (
+		<PermalinkPage entry={entry} localePath={localePath} />
+	)
+}

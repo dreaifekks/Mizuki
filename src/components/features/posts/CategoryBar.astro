@@ -4,12 +4,12 @@ import { i18n } from "@i18n/translation";
 import { Icon } from "astro-icon/components";
 
 import { getCategoryList, getSortedPostsList } from "@/utils/content-utils";
-import { getCategoryUrl, url } from "@/utils/url-utils";
+import { getCategoryUrl, localizedUrl } from "@/utils/url-utils";
 
 const categories = await getCategoryList();
 const totalPosts = (await getSortedPostsList()).length;
-const homeUrl = url("/");
-const archiveUrl = url("/archive/");
+const homeUrl = localizedUrl("/");
+const archiveUrl = localizedUrl("/archive/");
 ---
 
 <div

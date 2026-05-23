@@ -35,17 +35,23 @@ import { licenseConfig } from "src/config";
 import { permalinkConfig } from "@/config";
 
 import { profileConfig, siteConfig } from "../config";
+import {
+	getDefaultLocaleInfo,
+	setCurrentLocaleContext,
+} from "../i18n/locale";
 import { formatDateToYYYYMMDD } from "../utils/date-utils";
 
 export async function getStaticPaths() {
-	const blogEntries = await getSortedPosts();
+	const defaultLocale = getDefaultLocaleInfo();
+	setCurrentLocaleContext(defaultLocale.path, false);
+	const blogEntries = await getSortedPosts(defaultLocale.lang);
 
 	// 初始化文章 ID 映射
 	initPostIdMap(blogEntries);
 
 	const paths: {
 		params: { permalink: string };
-		props: { entry: CollectionEntry<"posts"> };
+		props: { entry: CollectionEntry<"posts">; localePath: string };
 	}[] = [];
 
 	for (const entry of blogEntries) {
@@ -54,7 +60,8 @@ export async function getStaticPaths() {
 		// 优先使用自定义 permalink
 		if (hasCustomPermalink(entry)) {
 			permalink =
-				entry.data.permalink?.replace(/^\/+/, "").replace(/\/+$/, "") ?? null;
+				entry.data.permalink?.replace(/^\/+/, "").replace(/\/+$/, "") ??
+				null;
 		}
 		// 其次使用全局 permalink（如果启用）
 		else if (permalinkConfig.enable) {
@@ -65,7 +72,7 @@ export async function getStaticPaths() {
 		if (permalink) {
 			paths.push({
 				params: { permalink },
-				props: { entry },
+				props: { entry, localePath: defaultLocale.path },
 			});
 		}
 	}
@@ -74,6 +81,7 @@ export async function getStaticPaths() {
 }
 
 const { entry } = Astro.props;
+setCurrentLocaleContext(Astro.props.localePath);
 const { Content, headings } = await render(entry);
 
 const { remarkPluginFrontmatter } = await render(entry);
@@ -99,7 +107,7 @@ const jsonLd = {
 	datePublished: formatDateToYYYYMMDD(entry.data.published),
 	inLanguage: entry.data.lang
 		? entry.data.lang.replace("_", "-")
-		: siteConfig.lang.replace("_", "-"),
+		: Astro.props.localePath,
 };
 ---
 

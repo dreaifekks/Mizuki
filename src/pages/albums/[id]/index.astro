@@ -1,6 +1,5 @@
 ---
 import { PhotoCard } from "@components/features/albums";
-import Encryptor from "@components/features/auth/Encryptor.astro";
 import PasswordProtection from "@components/features/auth/PasswordProtection.astro";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
 import { encryptContent } from "@utils/crypto-utils";
@@ -11,6 +10,8 @@ import I18nKey from "../../../i18n/i18nKey";
 import { i18n } from "../../../i18n/translation";
 import type { AlbumGroup, Photo } from "../../../types/album";
 import { scanAlbums } from "../../../utils/album-scanner";
+import { setCurrentLocaleContext } from "../../../i18n/locale";
+import { localizedUrl } from "../../../utils/url-utils";
 
 if (!siteConfig.featurePages.albums) {
 	return Astro.redirect("/404/");
@@ -26,9 +27,11 @@ export const getStaticPaths = async () => {
 
 interface Props {
 	album: AlbumGroup;
+	localePath?: string;
 }
 
 const { album } = Astro.props;
+setCurrentLocaleContext(Astro.props.localePath);
 
 if (!album) {
 	return Astro.redirect("/404/");
@@ -79,7 +82,7 @@ if (isEncrypted) {
 
 					{/* Back button */}
 					<a
-						href="/albums/"
+						href={localizedUrl("/albums/")}
 						class="absolute top-4 left-4 inline-flex items-center gap-1.5 text-sm text-white/90 hover:text-white bg-black/30 hover:bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-lg transition-colors"
 					>
 						<Icon
@@ -141,7 +144,7 @@ if (isEncrypted) {
 			) : (
 				<div class="card-base px-6 py-4">
 					<a
-						href="/albums/"
+						href={localizedUrl("/albums/")}
 						class="inline-flex items-center gap-1 text-sm text-(--primary) hover:underline mb-3"
 					>
 						<Icon

@@ -7,6 +7,7 @@ import MainGridLayout from "@layouts/MainGridLayout.astro";
 
 import { siteConfig } from "../config";
 import I18nKey from "../i18n/i18nKey";
+import { setCurrentLocaleContext } from "../i18n/locale";
 import { i18n } from "../i18n/translation";
 import {
 	getAnimeList,
@@ -14,6 +15,8 @@ import {
 	getStatusMap,
 } from "../utils/anime-data";
 import { widgetManager } from "../utils/widget-manager";
+
+setCurrentLocaleContext(Astro.props.localePath);
 
 if (!siteConfig.featurePages.anime) {
 	return Astro.redirect("/404/");

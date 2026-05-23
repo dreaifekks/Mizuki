@@ -25,6 +25,12 @@ export interface SiteConfig {
 		| "tr"
 		| "id";
 
+	i18n?: {
+		enabled: boolean;
+		defaultLocale?: "cn" | "en" | "jp";
+		locales: ("cn" | "en" | "jp")[];
+	};
+
 	themeColor: {
 		hue: number;
 		fixed: boolean;

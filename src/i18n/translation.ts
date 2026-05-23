@@ -4,6 +4,7 @@ import { en } from "./languages/en";
 import { ja } from "./languages/ja";
 import { zh_CN } from "./languages/zh_CN";
 import { zh_TW } from "./languages/zh_TW";
+import { getCurrentLocaleLang } from "./locale";
 
 export type Translation = Record<I18nKey, string>;
 
@@ -25,6 +26,10 @@ export function getTranslation(lang: string): Translation {
 }
 
 export function i18n(key: I18nKey): string {
-	const lang = siteConfig.lang || "en";
+	const lang = getCurrentLocaleLang() || siteConfig.lang || "en";
+	return getTranslation(lang)[key];
+}
+
+export function i18nFor(lang: string, key: I18nKey): string {
 	return getTranslation(lang)[key];
 }

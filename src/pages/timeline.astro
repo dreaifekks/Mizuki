@@ -8,7 +8,10 @@ import { Icon } from "astro-icon/components";
 import { siteConfig } from "../config";
 import { timelineData } from "../data/timeline";
 import I18nKey from "../i18n/i18nKey";
+import { setCurrentLocaleContext } from "../i18n/locale";
 import { i18n } from "../i18n/translation";
+
+setCurrentLocaleContext(Astro.props.localePath);
 
 if (!siteConfig.featurePages.timeline) {
 	return Astro.redirect("/404/");

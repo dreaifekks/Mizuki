@@ -7,20 +7,99 @@ import type { GetStaticPaths } from "astro";
 
 import { siteConfig } from "../config";
 import { PAGE_SIZE } from "../constants/constants";
+import {
+	getRouteLocaleStaticContexts,
+	setCurrentLocaleContext,
+} from "../i18n/locale";
 import { getSortedPosts } from "../utils/content-utils";
 import { initPostIdMap } from "../utils/permalink-utils";
 
 const showCategoryBar = siteConfig.postListLayout.categoryBar?.enable ?? false;
 
-export const getStaticPaths = (async ({ paginate }) => {
-	const allBlogPosts = await getSortedPosts();
-	// 初始化文章 ID 映射（用于 permalink 功能）
-	initPostIdMap(allBlogPosts);
-	return paginate(allBlogPosts, { pageSize: PAGE_SIZE });
+export const getStaticPaths = (async () => {
+	const getPagePath = (routePrefix: string, pageNumber: number) => {
+		if (routePrefix) {
+			return pageNumber === 1
+				? `/${routePrefix}/`
+				: `/${routePrefix}/${pageNumber}/`;
+		}
+		return pageNumber === 1 ? "/" : `/${pageNumber}/`;
+	};
+
+	const buildPage = (
+		data: Awaited<ReturnType<typeof getSortedPosts>>,
+		routePrefix: string,
+		pageNumber: number,
+		lastPage: number,
+	) => {
+		const start = (pageNumber - 1) * PAGE_SIZE;
+		const pageData = data.slice(start, start + PAGE_SIZE);
+		return {
+			data: pageData,
+			start,
+			end: Math.min(start + pageData.length, data.length),
+			total: data.length,
+			currentPage: pageNumber,
+			size: PAGE_SIZE,
+			lastPage,
+			url: {
+				current: getPagePath(routePrefix, pageNumber),
+				prev:
+					pageNumber > 1
+						? getPagePath(routePrefix, pageNumber - 1)
+						: undefined,
+				next:
+					pageNumber < lastPage
+						? getPagePath(routePrefix, pageNumber + 1)
+						: undefined,
+				first: pageNumber > 1 ? getPagePath(routePrefix, 1) : undefined,
+				last:
+					pageNumber < lastPage
+						? getPagePath(routePrefix, lastPage)
+						: undefined,
+			},
+		};
+	};
+
+	const paths = [];
+
+	for (const locale of getRouteLocaleStaticContexts()) {
+		setCurrentLocaleContext(locale.localePath, locale.hasLocalePrefix);
+		const allBlogPosts = await getSortedPosts(locale.lang);
+		// 初始化文章 ID 映射（用于 permalink 功能）
+		initPostIdMap(allBlogPosts);
+
+		const lastPage = Math.max(1, Math.ceil(allBlogPosts.length / PAGE_SIZE));
+		for (let pageNumber = 1; pageNumber <= lastPage; pageNumber++) {
+			paths.push({
+				params: {
+					page: locale.routePrefix
+						? pageNumber === 1
+							? locale.routePrefix
+							: `${locale.routePrefix}/${pageNumber}`
+						: pageNumber === 1
+							? undefined
+							: String(pageNumber),
+				},
+				props: {
+					localePath: locale.localePath,
+					page: buildPage(
+						allBlogPosts,
+						locale.routePrefix,
+						pageNumber,
+						lastPage,
+					),
+				},
+			});
+		}
+	}
+
+	return paths;
 }) satisfies GetStaticPaths;
 // https://github.com/withastro/astro/issues/6507#issuecomment-1489916992
 
 const { page } = Astro.props;
+setCurrentLocaleContext(Astro.props.localePath);
 
 const len = page.data.length;
 ---

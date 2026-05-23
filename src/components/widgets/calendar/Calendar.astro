@@ -1,6 +1,6 @@
 ---
-import { siteConfig } from "../../../config";
 import I18nKey from "../../../i18n/i18nKey";
+import { getCurrentLocaleLang } from "../../../i18n/locale";
 import { i18n } from "../../../i18n/translation";
 import WidgetLayout from "../common/WidgetLayout.astro";
 import CalendarWidget from "./Calendar.svelte";
@@ -37,7 +37,7 @@ const weekDays = [
 	i18n(I18nKey.calendarSunday),
 ];
 
-const isChinese = siteConfig.lang.startsWith("zh");
+const isChinese = getCurrentLocaleLang().startsWith("zh");
 const yearSuffix = isChinese ? "年" : " ";
 ---
 

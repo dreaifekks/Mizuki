@@ -3,9 +3,14 @@ import { Icon } from "astro-icon/components";
 
 import { LinkPresets } from "../../../constants/link-presets";
 import I18nKey from "../../../i18n/i18nKey";
+import {
+	SUPPORTED_LOCALES,
+	getCurrentLocalePath,
+	getLocaleSwitchPath,
+} from "../../../i18n/locale";
 import { i18n } from "../../../i18n/translation";
 import type { LinkPreset, NavBarLink } from "../../../types/config";
-import { url } from "../../../utils/url-utils";
+import { localizedUrl } from "../../../utils/url-utils";
 import type { NavMenuPanelProps, ProcessedNavBarLink } from "./types";
 
 const navTitleMap: Record<string, string> = {
@@ -46,6 +51,13 @@ const processedLinks: ProcessedNavBarLink[] = (
 		),
 	}),
 );
+
+const currentLocalePath = getCurrentLocalePath();
+const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
+	...locale,
+	href: getLocaleSwitchPath(Astro.url.pathname + Astro.url.search, locale.path),
+	active: locale.path === currentLocalePath,
+}));
 ---
 
 <div
@@ -85,7 +97,7 @@ const processedLinks: ProcessedNavBarLink[] = (
 									href={
 										child.external
 											? child.url
-											: url(child.url)
+											: localizedUrl(child.url)
 									}
 									class="group flex justify-between items-center py-2 pl-6 pr-1 rounded-lg gap-4
                                    hover:bg-[var(--btn-plain-bg-hover)] active:bg-[var(--btn-plain-bg-active)] transition"
@@ -112,7 +124,9 @@ const processedLinks: ProcessedNavBarLink[] = (
 					</div>
 				) : (
 					<a
-						href={link.external ? link.url : url(link.url)}
+						href={
+							link.external ? link.url : localizedUrl(link.url)
+						}
 						class="group flex justify-between items-center py-2 pl-3 pr-1 rounded-lg gap-4
                     hover:bg-[var(--btn-plain-bg-hover)] active:bg-[var(--btn-plain-bg-active)] transition
                 "
@@ -144,6 +158,37 @@ const processedLinks: ProcessedNavBarLink[] = (
 			</div>
 		))
 	}
+	<div class="mobile-menu-item language-section">
+		<div class="px-3 pt-3 pb-1 text-xs font-bold uppercase tracking-wide text-black/35 dark:text-white/35">
+			Language
+		</div>
+		<div class="flex flex-col">
+			{languageOptions.map((locale) => (
+				<a
+					href={locale.href}
+					class:list={[
+						"group flex justify-between items-center py-2 pl-3 pr-1 rounded-lg gap-4 hover:bg-[var(--btn-plain-bg-hover)] active:bg-[var(--btn-plain-bg-active)] transition",
+						{ "text-[var(--primary)]": locale.active },
+					]}
+					aria-current={locale.active ? "page" : null}
+				>
+					<div class="flex items-center transition font-bold">
+						<Icon
+							name="material-symbols:translate"
+							class="text-[1.1rem] mr-2"
+						/>
+						{locale.label}
+					</div>
+					{locale.active && (
+						<Icon
+							name="material-symbols:check-rounded"
+							class="transition text-[1.25rem] text-[var(--primary)]"
+						/>
+					)}
+				</a>
+			))}
+		</div>
+	</div>
 </div>
 
 <style>

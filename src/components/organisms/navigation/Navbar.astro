@@ -3,8 +3,14 @@ import { Icon } from "astro-icon/components";
 
 import { navBarConfig, siteConfig } from "../../../config";
 import { LinkPresets } from "../../../constants/link-presets";
+import {
+	SUPPORTED_LOCALES,
+	getCurrentLocalePath,
+	getLocaleSwitchPath,
+	isLocalizedHomePath,
+} from "../../../i18n/locale";
 import { LinkPreset, type NavBarLink } from "../../../types/config";
-import { url } from "../../../utils/url-utils";
+import { localizedUrl, url } from "../../../utils/url-utils";
 import LayoutSwitch from "../../control/LayoutSwitch.svelte";
 import ThemeSwitch from "../../control/ThemeSwitch.svelte";
 import DisplaySettings from "../../features/settings/DisplaySettings.svelte";
@@ -25,7 +31,7 @@ const modeSwitchDisplay =
 	siteConfig.wallpaperMode?.showModeSwitchOnMobile || "desktop";
 
 // 检查是否为首页
-const isHomePage = Astro.url.pathname === "/" || Astro.url.pathname === "";
+const isHomePage = isLocalizedHomePath(Astro.url.pathname);
 
 // featurePage URL -> config key mapping
 const featurePageUrlMap: Record<string, string> = {
@@ -104,11 +110,20 @@ const logoWebpSrc = hasLogoPngFallback
 const iconWebpSrc = hasIconPngFallback
 	? iconSrc.replace(/\.png$/i, ".webp")
 	: iconSrc;
+const currentLocalePath = getCurrentLocalePath();
+const currentLocale =
+	SUPPORTED_LOCALES.find((locale) => locale.path === currentLocalePath) ||
+	SUPPORTED_LOCALES[0];
+const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
+	...locale,
+	href: getLocaleSwitchPath(Astro.url.pathname + Astro.url.search, locale.path),
+	active: locale.path === currentLocalePath,
+}));
 ---
 <div id="navbar" class="z-50 onload-animation group" data-transparent-mode={navbarTransparentMode} data-is-home={isHomePage}>
     <div class="absolute h-8 left-0 right-0 -top-8 bg-[var(--card-bg)] transition"></div> <!-- used for onload animation -->
     <div class:list={[className, "!overflow-visible max-w-[var(--page-width)] h-[4.5rem] mx-auto flex items-center justify-between px-4"]}>
-        <a href={url('/')} class="btn-plain scale-animation rounded-lg h-[2.5rem] md:h-[3.25rem] md:[.enable-banner_&]:h-[2.5rem] md:[.enable-banner_&]:group-[.scrolled]:h-[3.25rem] px-5 font-bold active:scale-95 shrink-0 transition-all duration-300">
+        <a href={localizedUrl('/')} class="btn-plain scale-animation rounded-lg h-[2.5rem] md:h-[3.25rem] md:[.enable-banner_&]:h-[2.5rem] md:[.enable-banner_&]:group-[.scrolled]:h-[3.25rem] px-5 font-bold active:scale-95 shrink-0 transition-all duration-300">
             <div class="flex flex-row items-center text-md">
 				{/* 使用navbarTitle配置或默认配置 */}
                 {siteConfig.navbarTitle ? (
@@ -159,6 +174,38 @@ const iconWebpSrc = hasIconPngFallback
                     </button>
             )}
             <LayoutSwitch client:only="svelte" currentLayout={siteConfig.postListLayout.defaultMode}></LayoutSwitch>
+            <div class="language-switcher hidden sm:block relative group" data-language-switcher>
+                <button
+                    aria-label="Language"
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                    class="btn-plain scale-animation rounded-lg h-11 px-3 active:scale-90 flex items-center gap-1.5 font-bold"
+                    data-language-trigger
+                >
+                    <Icon name="material-symbols:translate" class="text-[1.2rem]"></Icon>
+                    <span class="text-xs">{currentLocale.shortLabel}</span>
+                    <Icon name="material-symbols:keyboard-arrow-down-rounded" class="text-[1.1rem] transition-transform duration-200 language-arrow"></Icon>
+                </button>
+                <div class="language-menu">
+                    <div class="language-menu-content">
+                        {languageOptions.map((locale) => (
+                            <a
+                                href={locale.href}
+                                class:list={[
+                                    "language-menu-item",
+                                    { "language-menu-item-active": locale.active },
+                                ]}
+                                aria-current={locale.active ? "page" : null}
+                            >
+                                <span>{locale.label}</span>
+                                {locale.active && (
+                                    <Icon name="material-symbols:check-rounded" class="text-[1rem] text-[var(--primary)]"></Icon>
+                                )}
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            </div>
             <!-- 整体布局方案切换按钮：根据配置决定在哪些设备上显示 -->
             <div class:list={[
                 modeSwitchDisplay === "off" ? "hidden" :
@@ -181,6 +228,24 @@ const iconWebpSrc = hasIconPngFallback
 <script>
 	const searchContainer = document.getElementById("search-container");
 	const navbarLinksContainer = document.getElementById("navbar-links-container");
+	const languageSwitcher = document.querySelector("[data-language-switcher]");
+	const languageTrigger = document.querySelector("[data-language-trigger]");
+
+	if (languageSwitcher && languageTrigger) {
+		languageTrigger.addEventListener("click", () => {
+			const isExpanded =
+				languageTrigger.getAttribute("aria-expanded") === "true";
+			languageTrigger.setAttribute("aria-expanded", String(!isExpanded));
+		});
+		document.addEventListener("click", (event) => {
+			if (!(event.target instanceof Node)) {
+				return;
+			}
+			if (!languageSwitcher.contains(event.target)) {
+				languageTrigger.setAttribute("aria-expanded", "false");
+			}
+		});
+	}
 
 	if (searchContainer && navbarLinksContainer) {
 		// 鼠标移入/触摸开始时隐藏导航链接
@@ -334,6 +399,46 @@ if (document.readyState === 'loading') {
     initSemifullScrollDetection();
 }
 </script>
+
+<style>
+	@reference "tailwindcss";
+
+	.language-switcher {
+		@apply relative;
+	}
+
+	.language-menu {
+		@apply absolute top-full right-0 pt-2 opacity-0 invisible pointer-events-none translate-y-[-8px] transition-all duration-200 ease-out z-50;
+	}
+
+	.language-switcher:hover .language-menu,
+	.language-switcher:focus-within .language-menu,
+	.language-switcher
+		[data-language-trigger][aria-expanded="true"]
+		+ .language-menu {
+		@apply opacity-100 visible pointer-events-auto translate-y-0;
+	}
+
+	.language-switcher:hover .language-arrow,
+	.language-switcher:focus-within .language-arrow,
+	.language-switcher
+		[data-language-trigger][aria-expanded="true"]
+		.language-arrow {
+		@apply rotate-180;
+	}
+
+	.language-menu-content {
+		@apply bg-[var(--float-panel-bg)] rounded-[var(--radius-large)] shadow-xl dark:shadow-none border border-black/5 dark:border-white/10 p-2 min-w-[9.5rem];
+	}
+
+	.language-menu-item {
+		@apply flex items-center justify-between gap-3 px-4 py-2.5 text-black/75 dark:text-white/75 hover:text-[var(--primary)] hover:bg-[var(--btn-plain-bg-hover)] transition-colors duration-150 font-medium rounded-lg whitespace-nowrap;
+	}
+
+	.language-menu-item-active {
+		@apply text-[var(--primary)] bg-[var(--btn-plain-bg-hover)];
+	}
+</style>
 
 {import.meta.env.PROD && <script is:inline define:vars={{scriptUrl: url('/pagefind/pagefind.js')}}>
 window.loadPagefind = async function() {

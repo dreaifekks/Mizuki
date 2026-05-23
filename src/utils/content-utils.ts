@@ -3,47 +3,127 @@ import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import { initPostIdMap } from "@utils/permalink-utils";
 import { getCategoryUrl, getPostUrl } from "@utils/url-utils";
+import {
+	type PostVariantGroup,
+	getCanonicalPostSlugFromId,
+	getPostVariantLanguageKey,
+	selectPreferredPostVariant,
+} from "./post-variant-utils";
 
-// // Retrieve posts and sort them by publication date
+type PostEntry = CollectionEntry<"posts">;
+
+function sortPostsForDisplay(a: PostEntry, b: PostEntry) {
+	// 首先按置顶状态排序，置顶文章在前
+	if (a.data.pinned && !b.data.pinned) {
+		return -1;
+	}
+	if (!a.data.pinned && b.data.pinned) {
+		return 1;
+	}
+
+	// 如果置顶状态相同，优先按 Priority 排序（数值越小越靠前）
+	if (a.data.pinned && b.data.pinned) {
+		const priorityA = a.data.priority;
+		const priorityB = b.data.priority;
+		if (priorityA !== undefined && priorityB !== undefined) {
+			if (priorityA !== priorityB) {
+				return priorityA - priorityB;
+			}
+		} else if (priorityA !== undefined) {
+			return -1;
+		} else if (priorityB !== undefined) {
+			return 1;
+		}
+	}
+
+	// 否则按发布日期排序
+	const dateA = new Date(a.data.published);
+	const dateB = new Date(b.data.published);
+	return dateA > dateB ? -1 : 1;
+}
+
+// Retrieve posts and sort them by publication date
 async function getRawSortedPosts() {
 	const allBlogPosts = await getCollection("posts", ({ data }) => {
 		return import.meta.env.PROD ? data.draft !== true : true;
 	});
 
-	const sorted = allBlogPosts.sort((a, b) => {
-		// 首先按置顶状态排序，置顶文章在前
-		if (a.data.pinned && !b.data.pinned) {
-			return -1;
-		}
-		if (!a.data.pinned && b.data.pinned) {
-			return 1;
-		}
-
-		// 如果置顶状态相同，优先按 Priority 排序（数值越小越靠前）
-		if (a.data.pinned && b.data.pinned) {
-			const priorityA = a.data.priority;
-			const priorityB = b.data.priority;
-			if (priorityA !== undefined && priorityB !== undefined) {
-				if (priorityA !== priorityB) {
-					return priorityA - priorityB;
-				}
-			} else if (priorityA !== undefined) {
-				return -1;
-			} else if (priorityB !== undefined) {
-				return 1;
-			}
-		}
-
-		// 否则按发布日期排序
-		const dateA = new Date(a.data.published);
-		const dateB = new Date(b.data.published);
-		return dateA > dateB ? -1 : 1;
-	});
+	const sorted = allBlogPosts.sort(sortPostsForDisplay);
 	return sorted;
 }
 
-export async function getSortedPosts() {
+function sortVariantsInGroup(
+	variants: PostEntry[],
+	preferredLang?: string | null,
+): PostEntry[] {
+	const preferred = selectPreferredPostVariant(variants, preferredLang);
+	const preferredId = preferred.id;
+
+	return [...variants].sort((a, b) => {
+		if (a.id === preferredId && b.id !== preferredId) {
+			return -1;
+		}
+		if (b.id === preferredId && a.id !== preferredId) {
+			return 1;
+		}
+
+		const aLang = getPostVariantLanguageKey(a);
+		const bLang = getPostVariantLanguageKey(b);
+		if (aLang === "default" && bLang !== "default") {
+			return -1;
+		}
+		if (bLang === "default" && aLang !== "default") {
+			return 1;
+		}
+
+		return aLang.localeCompare(bLang);
+	});
+}
+
+export async function getSortedPostGroups(
+	preferredLang?: string | null,
+): Promise<PostVariantGroup[]> {
 	const sorted = await getRawSortedPosts();
+	const grouped = new Map<string, PostEntry[]>();
+
+	for (const post of sorted) {
+		const canonicalId = getCanonicalPostSlugFromId(post);
+		const list = grouped.get(canonicalId);
+		if (list) {
+			list.push(post);
+		} else {
+			grouped.set(canonicalId, [post]);
+		}
+	}
+
+	const groups: PostVariantGroup[] = Array.from(grouped.entries()).map(
+		([canonicalId, variants]) => {
+			const sortedVariants = sortVariantsInGroup(variants, preferredLang);
+			return {
+				canonicalId,
+				variants: sortedVariants,
+				defaultEntry: selectPreferredPostVariant(
+					sortedVariants,
+					preferredLang,
+				),
+			};
+		},
+	);
+
+	groups.sort((a, b) => sortPostsForDisplay(a.defaultEntry, b.defaultEntry));
+	return groups;
+}
+
+export async function getSortedPosts(preferredLang?: string | null) {
+	const groups = await getSortedPostGroups(preferredLang);
+	const sorted = groups.map((group) => group.defaultEntry);
+
+	for (const post of sorted) {
+		post.data.prevSlug = "";
+		post.data.prevTitle = "";
+		post.data.nextSlug = "";
+		post.data.nextTitle = "";
+	}
 
 	for (let i = 1; i < sorted.length; i++) {
 		sorted[i].data.nextSlug = sorted[i - 1].id;

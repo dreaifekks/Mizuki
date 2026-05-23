@@ -10,7 +10,10 @@ const BANNER_HEIGHT_EXTEND = 30;
 const BANNER_HEIGHT_HOME = BANNER_HEIGHT + BANNER_HEIGHT_EXTEND;
 
 import { PAGE_WIDTH } from "../constants/constants";
-import { pathsEqual, url } from "../utils/url-utils";
+import {
+	isLocalizedHomePath,
+	setCurrentLocaleContextFromPath,
+} from "../i18n/locale";
 import "../styles/main.css";
 import "../styles/mobile-navbar.css";
 import "../styles/wallpaper-navbar-transparent.css";
@@ -42,10 +45,12 @@ let {
 	coverImage,
 } = Astro.props;
 
+const routeLocale = setCurrentLocaleContextFromPath(Astro.url.pathname);
+
 // apply a class to the body element to decide the height of the banner, only used for initial page load
 // Swup can update the body for each page visit, but it's after the page transition, causing a delay for banner height change
 // so use Swup hooks instead to change the height immediately when a link is clicked
-const isHomePage = pathsEqual(Astro.url.pathname, url("/"));
+const isHomePage = isLocalizedHomePath(Astro.url.pathname);
 
 // defines global css variables
 // why doing this in Layout instead of GlobalStyles: https://github.com/withastro/astro/issues/6728#issuecomment-1502203757
@@ -123,9 +128,9 @@ if (siteConfig.generateOgImages && postSlug) {
 
 // const siteLang = siteConfig.lang.replace('_', '-')
 if (!lang) {
-	lang = `${siteConfig.lang}`;
+	lang = routeLocale.lang;
 }
-const siteLang = lang.replace("_", "-");
+const siteLang = routeLocale.htmlLang || lang.replace("_", "-");
 
 const bannerOffsetByPosition = {
 	top: `${BANNER_HEIGHT_EXTEND}vh`,

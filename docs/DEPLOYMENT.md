@@ -276,7 +276,7 @@ USE_SUBMODULE=false  # ⚠️ Cloudflare Pages 默认不支持 submodule
 // package.json
 {
   "scripts": {
-    "prebuild": "node scripts/sync-content.js || true"
+    "prebuild": "node scripts/sync-content.js"
   }
 }
 ```
@@ -286,12 +286,12 @@ USE_SUBMODULE=false  # ⚠️ Cloudflare Pages 默认不支持 submodule
 2. 检查 `ENABLE_CONTENT_SYNC` 环境变量
 3. 如果为 `true`，从远程仓库同步内容到 `src/content/` 和 `public/images/`
 4. 如果为 `false` 或未设置，跳过同步，使用本地内容
-5. `|| true` 确保同步失败不会中断构建
+5. 如果已启用内容同步但同步失败，构建会中断，避免部署旧内容或示例内容
 
 **优势**:
 - ✅ 统一的构建命令，无需修改配置
 - ✅ 自动兼容所有部署模式
-- ✅ 同步失败不影响构建（回退到本地内容）
+- ✅ 同步失败会暴露在构建日志中，避免静默发布过期内容
 
 ---
 

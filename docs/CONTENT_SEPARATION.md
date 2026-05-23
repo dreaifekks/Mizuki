@@ -22,7 +22,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/matsuzaka-yuki/Mizuki.git
+git clone https://github.com/LyraVoid/Mizuki.git
 cd Mizuki
 
 # 安装依赖
@@ -327,7 +327,7 @@ CONTENT_REPO_URL=https://YOUR_TOKEN@github.com/your-username/Mizuki-Content-Priv
 所有部署平台都使用相同的自动同步机制:
 - ✅ `pnpm build` 执行前自动运行 `prebuild` 钩子
 - ✅ 根据 `ENABLE_CONTENT_SYNC` 决定是否同步内容
-- ✅ 同步失败不会中断构建,回退到本地内容
+- ✅ 启用内容分离时，同步失败会中断构建，避免发布旧内容或示例内容
 
 **只需配置环境变量,无需修改构建命令!**
 
@@ -378,7 +378,7 @@ CONTENT_REPO_URL=https://YOUR_TOKEN@github.com/your-username/Mizuki-Content-Priv
 - `pnpm dev` - 开发前自动同步
 - `pnpm build` - 构建前自动同步
 
-同步失败不会中断开发,会显示警告并继续。
+启用内容分离时，同步失败会中断命令；未启用时会直接跳过同步并使用本地内容。
 
 ---
 
@@ -518,7 +518,7 @@ git clone https://github.com/your-username/Mizuki-Content.git content
 
 ## 🤝 需要帮助?
 
-- 查看 [GitHub Issues](https://github.com/matsuzaka-yuki/Mizuki/issues)
+- 查看 [GitHub Issues](https://github.com/LyraVoid/Mizuki/issues)
 - 阅读 [完整文档](../README.zh.md)
 - 运行 `pnpm run check-env` 检查配置
 

@@ -5,19 +5,17 @@ export function rehypeImageWidth() {
 
 	return (tree) => {
 		visit(tree, "element", (node, index, parent) => {
-			if (
-				node.tagName === "img" &&
-				node.properties &&
-				node.properties.alt
-			) {
+			if (node.tagName === "img" && node.properties && node.properties.alt) {
 				const alt = node.properties.alt;
 				const match = alt.match(regex);
 
 				if (match) {
 					const width = match[1];
 					node.properties.alt = alt.replace(regex, "").trim();
-					node.properties.width = `${width}%`;
-					node.properties.style = "display: block; margin: 0 auto;";
+					node.properties.style = `width: ${width}%; display: block; margin: 0 auto;`;
+					// Remove width and height attributes if they were set by Astro optimization
+					delete node.properties.width;
+					delete node.properties.height;
 
 					const figureChildren = [node];
 
@@ -26,7 +24,8 @@ export function rehypeImageWidth() {
 							type: "element",
 							tagName: "figcaption",
 							properties: {
-								style: "text-align: center; margin-top: 0.5em; font-size: 0.9em; color: #666;",
+								style:
+									"text-align: center; margin-top: 0.5em; font-size: 0.9em; color: #666;",
 							},
 							children: [
 								{
@@ -55,4 +54,3 @@ export function rehypeImageWidth() {
 		});
 	};
 }
-

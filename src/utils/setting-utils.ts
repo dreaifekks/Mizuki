@@ -4,6 +4,7 @@ import {
 	LIGHT_MODE,
 	// WALLPAPER_BANNER,
 } from "@constants/constants";
+
 import { siteConfig } from "@/config";
 import type { LIGHT_DARK_MODE, WALLPAPER_MODE } from "@/types/config";
 
@@ -12,14 +13,14 @@ export function getDefaultHue(): number {
 	const configCarrier = document.getElementById("config-carrier");
 	// 在Swup页面切换时，config-carrier可能不存在，使用默认值
 	if (!configCarrier) {
-		return Number.parseInt(fallback);
+		return Number.parseInt(fallback, 10);
 	}
-	return Number.parseInt(configCarrier.dataset.hue || fallback);
+	return Number.parseInt(configCarrier.dataset.hue || fallback, 10);
 }
 
 export function getHue(): number {
 	const stored = localStorage.getItem("hue");
-	return stored ? Number.parseInt(stored) : getDefaultHue();
+	return stored ? Number.parseInt(stored, 10) : getDefaultHue();
 }
 
 export function setHue(hue: number): void {
@@ -77,13 +78,8 @@ export function applyThemeToDocument(theme: LIGHT_DARK_MODE) {
 		// Set the theme for Expressive Code based on current mode
 		// 只在必要时更新 data-theme 属性以减少重绘
 		if (needsCodeThemeUpdate) {
-			const expressiveTheme = targetIsDark
-				? "github-dark"
-				: "github-light";
-			document.documentElement.setAttribute(
-				"data-theme",
-				expressiveTheme,
-			);
+			const expressiveTheme = targetIsDark ? "github-dark" : "github-light";
+			document.documentElement.setAttribute("data-theme", expressiveTheme);
 		}
 	};
 
@@ -134,9 +130,7 @@ export function applyThemeToDocument(theme: LIGHT_DARK_MODE) {
 		// 使用 requestAnimationFrame 确保在下一帧移除过渡保护类
 		if (needsThemeChange) {
 			requestAnimationFrame(() => {
-				document.documentElement.classList.remove(
-					"is-theme-transitioning",
-				);
+				document.documentElement.classList.remove("is-theme-transitioning");
 			});
 		}
 	}

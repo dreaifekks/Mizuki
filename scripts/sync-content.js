@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -11,23 +11,94 @@ const rootDir = path.resolve(__dirname, "..");
 loadEnv();
 console.log("Loaded .env configuration file\n");
 
+function parseBoolean(value, fallback = false) {
+	if (value == null || value === "") return fallback;
+	const normalized = String(value).trim().toLowerCase();
+	if (["1", "true", "yes", "on"].includes(normalized)) return true;
+	if (["0", "false", "no", "off"].includes(normalized)) return false;
+	return fallback;
+}
+
+function resolveFromRoot(value) {
+	return path.isAbsolute(value) ? value : path.resolve(rootDir, value);
+}
+
+function redactRepoUrl(value) {
+	if (!value) return "";
+
+	try {
+		const url = new URL(value);
+		if (url.username || url.password) {
+			url.username = "***";
+			url.password = "";
+		}
+		return url.toString();
+	} catch {
+		return value.replace(/(https?:\/\/)([^/@]+)@/i, "$1***@");
+	}
+}
+
+function runGit(args, options = {}) {
+	execFileSync("git", args, {
+		stdio: "inherit",
+		...options,
+	});
+}
+
+function fail(message) {
+	console.error(`\nContent synchronization failed: ${message}`);
+	process.exit(1);
+}
+
+function countMarkdownFiles(dir) {
+	if (!fs.existsSync(dir)) return 0;
+	let count = 0;
+	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+		const entryPath = path.join(dir, entry.name);
+		if (entry.isDirectory()) {
+			count += countMarkdownFiles(entryPath);
+		} else if (/\.(md|mdx|markdown)$/i.test(entry.name)) {
+			count += 1;
+		}
+	}
+	return count;
+}
+
+function clearAstroContentCache() {
+	const astroCacheDir = path.join(rootDir, "node_modules", ".astro");
+	if (fs.existsSync(astroCacheDir)) {
+		fs.rmSync(astroCacheDir, { recursive: true, force: true });
+		console.log("Cleared Astro content cache: node_modules/.astro");
+	}
+}
+
 // 从环境变量读取配置
-const ENABLE_CONTENT_SYNC = process.env.ENABLE_CONTENT_SYNC !== "false"; // 默认启用
+const ENABLE_CONTENT_SYNC = parseBoolean(
+	process.env.ENABLE_CONTENT_SYNC,
+	false,
+);
 const CONTENT_REPO_URL = process.env.CONTENT_REPO_URL || "";
-const CONTENT_DIR = process.env.CONTENT_DIR || path.join(rootDir, "content");
+const CONTENT_DIR = resolveFromRoot(process.env.CONTENT_DIR || "content");
+const BACKUP_DIR = path.join(rootDir, ".content-sync-backup");
 
 console.log("Starting content synchronization...\n");
 
 // 检查是否启用内容分离
 if (!ENABLE_CONTENT_SYNC) {
-	console.log("Content separation is disabled (ENABLE_CONTENT_SYNC=false)");
 	console.log(
-		"Tip: Local content will be used, will not sync from remote repository",
+		"Content separation is disabled (ENABLE_CONTENT_SYNC is not true)",
 	);
-	console.log("     To enable content separation feature, set in .env:");
+	console.log("Local repository content will be used.");
+	console.log("To enable content separation, set:");
 	console.log("     ENABLE_CONTENT_SYNC=true");
 	console.log("     CONTENT_REPO_URL=<your-repo-url>\n");
 	process.exit(0);
+}
+
+if (!CONTENT_REPO_URL) {
+	fail(
+		"ENABLE_CONTENT_SYNC=true but CONTENT_REPO_URL is not set. Configure the content repository URL in your build environment.",
+	);
 }
 
 // 检查内容目录是否存在
@@ -35,24 +106,16 @@ if (!fs.existsSync(CONTENT_DIR)) {
 	console.log(`Content directory does not exist: ${CONTENT_DIR}`);
 	console.log("Using independent repository mode");
 
-	if (!CONTENT_REPO_URL) {
-		console.warn("Warning: CONTENT_REPO_URL not set, will use local content");
-		console.log(
-			"Tip: Please set CONTENT_REPO_URL environment variable or manually create content directory",
-		);
-		process.exit(0);
-	}
-
 	try {
-		console.log(`Cloning content repository: ${CONTENT_REPO_URL}`);
-		execSync(`git clone --depth 1 ${CONTENT_REPO_URL} ${CONTENT_DIR}`, {
-			stdio: "inherit",
+		console.log(
+			`Cloning content repository: ${redactRepoUrl(CONTENT_REPO_URL)}`,
+		);
+		runGit(["clone", "--depth", "1", CONTENT_REPO_URL, CONTENT_DIR], {
 			cwd: rootDir,
 		});
 		console.log("Content repository cloned successfully");
 	} catch (error) {
-		console.error("Clone failed:", error.message);
-		process.exit(1);
+		fail(`clone failed: ${error.message}`);
 	}
 } else {
 	console.log(`Content directory already exists: ${CONTENT_DIR}`);
@@ -60,15 +123,28 @@ if (!fs.existsSync(CONTENT_DIR)) {
 	if (fs.existsSync(path.join(CONTENT_DIR, ".git"))) {
 		try {
 			console.log("Pulling latest content...");
-			execSync("git pull --allow-unrelated-histories", {
-				stdio: "inherit",
+			runGit(["pull", "--ff-only"], {
 				cwd: CONTENT_DIR,
 			});
 			console.log("Content updated successfully");
 		} catch (error) {
-			console.warn("Content update failed:", error.message);
+			fail(`git pull failed: ${error.message}`);
 		}
+	} else {
+		console.log(
+			"Content directory is not a git repository; using it as-is.",
+		);
 	}
+}
+
+const requiredPostsDir = path.join(CONTENT_DIR, "posts");
+if (!fs.existsSync(requiredPostsDir)) {
+	fail(`required source directory is missing: ${requiredPostsDir}`);
+}
+
+const postCount = countMarkdownFiles(requiredPostsDir);
+if (postCount === 0) {
+	fail(`no Markdown posts found in ${requiredPostsDir}`);
 }
 
 // 创建符号链接或复制内容
@@ -84,23 +160,35 @@ const contentMappings = [
 for (const mapping of contentMappings) {
 	const srcPath = path.join(CONTENT_DIR, mapping.src);
 	const destPath = path.join(rootDir, mapping.dest);
+	const legacyBackupPath = `${destPath}.backup`;
 
 	if (!fs.existsSync(srcPath)) {
 		console.log(`Skipping non-existent source: ${mapping.src}`);
 		continue;
 	}
 
+	if (fs.existsSync(legacyBackupPath)) {
+		console.log(`Removing legacy in-place backup: ${mapping.dest}.backup`);
+		fs.rmSync(legacyBackupPath, { recursive: true, force: true });
+	}
+
 	// 如果目标已存在且不是符号链接,备份它
 	if (fs.existsSync(destPath) && !fs.lstatSync(destPath).isSymbolicLink()) {
-		const backupPath = `${destPath}.backup`;
+		const backupPath = path.join(BACKUP_DIR, mapping.dest);
 		console.log(
-			`Backing up existing content: ${mapping.dest} -> ${mapping.dest}.backup`,
+			`Backing up existing content: ${mapping.dest} -> ${path.relative(
+				rootDir,
+				backupPath,
+			)}`,
 		);
 		if (fs.existsSync(backupPath)) {
 			fs.rmSync(backupPath, { recursive: true, force: true });
 		}
+		fs.mkdirSync(path.dirname(backupPath), { recursive: true });
 		fs.renameSync(destPath, backupPath);
 	}
+
+	fs.mkdirSync(path.dirname(destPath), { recursive: true });
 
 	// 删除现有的符号链接
 	if (fs.existsSync(destPath)) {
@@ -118,7 +206,9 @@ for (const mapping of contentMappings) {
 	}
 }
 
-console.log("\nContent synchronization completed\n");
+clearAstroContentCache();
+
+console.log(`\nContent synchronization completed (${postCount} post files)\n`);
 
 // 递归复制函数
 function copyRecursive(src, dest) {

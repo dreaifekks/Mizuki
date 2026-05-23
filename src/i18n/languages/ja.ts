@@ -20,11 +20,6 @@ export const ja: Translation = {
 	[Key.postList]: "投稿の一覧",
 	[Key.tableOfContents]: "目次",
 	[Key.tocEmpty]: "目次はありません",
-	[Key.postLanguage]: "記事の言語",
-	[Key.postLanguageCurrent]: "現在の選択",
-	[Key.postLanguageNotSet]: "未設定",
-	[Key.postLanguageNoOptions]: "言語オプションが見つかりません",
-	[Key.postLanguageDefault]: "既定",
 
 	// お知らせ
 	[Key.announcement]: "お知らせ",
@@ -78,20 +73,21 @@ export const ja: Translation = {
 	[Key.animeStudio]: "スタジオ",
 	[Key.animeEmpty]: "アニメのデータはありません",
 	[Key.animeEmptyBangumi]:
-		"Bangumiの構成またはネットワークを接続を確認してください",
+		"Bangumiの構成またはネットワークの接続を確認してください",
 	[Key.animeEmptyBilibili]:
-		"Bilibiliの構成またはネットワーク接続を確認してください",
+		"Bilibiliの構成またはネットワークの接続を確認してください",
 	[Key.animeEmptyLocal]:
-		"src/data/anime.tsのファイルにアニメの情報を追加してください",
+		"src/data/anime.tsファイルにアニメの情報を追加してください",
 	[Key.animeConfigBilibili]:
-		"src/config.tsファイルでBilibili vmidを設定してください",
+		"src/config/siteConfig.tsファイルにBilibiliのvmidを設定してください",
 	[Key.animeConfigBangumi]:
-		"src/config.tsファイルでBangumi userIdを設定してください",
+		"src/config/siteConfig.tsファイルにBangumiのユーザーIDを設定してください",
 
 	// 日記ページ
 	[Key.diarySubtitle]: "いつでも、どこでも生活を共有",
+	[Key.diaryNoResults]: "一致するモーメントはありません",
 	[Key.diaryCount]: "件の日記のエントリー",
-	[Key.diaryReply]: "返信",
+
 	[Key.diaryTips]: "最新の30件の日記のエントリーのみを表示",
 	[Key.diaryMinutesAgo]: "分前",
 	[Key.diaryHoursAgo]: "時間前",
@@ -117,7 +113,7 @@ export const ja: Translation = {
 	[Key.musicPlayerShuffle]: "シャッフル",
 	[Key.musicPlayerRepeat]: "リピート",
 	[Key.musicPlayerRepeatOne]: "1曲のみリピート",
-	[Key.musicPlayerVolume]: "音量コントロール",
+	[Key.musicPlayerVolume]: "音量のコントロール",
 	[Key.musicPlayerProgress]: "再生状況",
 	[Key.musicPlayerCover]: "カバー",
 	[Key.musicPlayerPlaylist]: "プレイリスト",
@@ -143,6 +139,8 @@ export const ja: Translation = {
 	[Key.devicesViewDetails]: "詳細を表示",
 	[Key.albumsPhotoCount]: "件の写真",
 	[Key.albumsPhotosCount]: "件の写真",
+	[Key.albumsFilterAll]: "すべて",
+	[Key.albumsNoResults]: "一致するアルバムはありません",
 
 	// プロジェクトページ
 	[Key.projects]: "プロジェクト",
@@ -191,8 +189,7 @@ export const ja: Translation = {
 	[Key.rssHowToUse]:
 		"このサイトの購読はFeedly、Inoreaderまたはその他のRSSリーダーの使用をおすすめします。",
 	[Key.rssCopied]: "RSSのリンクをクリップボードにコピーしました!",
-	[Key.rssCopyFailed]:
-		"コピーに失敗しました。リンクを手動で追加してください。",
+	[Key.rssCopyFailed]: "コピーに失敗しました。リンクを手動で追加してください。",
 
 	// Atomページ
 	[Key.atom]: "Atomフィード",
@@ -273,10 +270,11 @@ export const ja: Translation = {
 
 	// パスワード保護
 	[Key.passwordProtected]: "パスワードで保護されています",
-	[Key.passwordProtectedTitle]:
-		"このコンテンツはパスワードで保護されています",
+	[Key.passwordProtectedTitle]: "このコンテンツはパスワードで保護されています",
 	[Key.passwordProtectedDescription]:
 		"保護されたコンテンツを表示するにはパスワードを入力してください。",
+	[Key.postEncrypted]: "暗号化済み",
+	[Key.postEncryptedMessage]: "この記事は暗号化されています",
 	[Key.passwordPlaceholder]: "パスワードを入力",
 	[Key.passwordUnlock]: "ロックを解除",
 	[Key.passwordUnlocking]: "ロックを解除中...",
@@ -293,6 +291,7 @@ export const ja: Translation = {
 	[Key.syntaxHighlightFailed]: "構文の強調表示が失敗しました:",
 	[Key.autoSyntaxHighlightFailed]: "自動構文強調表示が失敗しました:",
 	[Key.decryptionError]: "復号中にエラーが発生しました:",
+	[Key.passwordHint]: "ヒント",
 
 	// 最終更新時間カード
 	[Key.lastModifiedPrefix]: "最終編集からの時間: ",
@@ -342,7 +341,7 @@ export const ja: Translation = {
 	[Key.copied]: "コピーしました",
 	[Key.copyLink]: "リンクをコピー",
 	[Key.savePoster]: "ポスターを保存",
-	[Key.scanToRead]: "スキャンで読み込む",
+	[Key.scanToRead]: "出典元",
 	[Key.shareOnSocial]: "共有",
 	[Key.shareOnSocialDescription]:
 		"この記事が役に立ったときは、ぜひ他の人に共有してください!",
@@ -353,11 +352,17 @@ export const ja: Translation = {
 	[Key.profileStatsVisits]: "訪問",
 	[Key.profileStatsUnavailable]: "統計は利用できません",
 
-	// ページビューの統計
+	// ページ閲覧の統計
 	[Key.pageViewsLoading]: "統計を読み込み中...",
 	[Key.pageViewsUnavailable]: "統計は利用できません",
 
 	// レイアウト切り替えボタン
 	[Key.switchToGridMode]: "グリッド表示に切り替え",
 	[Key.switchToListMode]: "リスト表示に切り替え",
+
+	// 関連した投稿とランダムな投稿
+	[Key.relatedPosts]: "関連した投稿",
+	[Key.randomPosts]: "ランダムな投稿",
+	[Key.smartRecommend]: "スマート",
+	[Key.randomRecommend]: "ランダム",
 };

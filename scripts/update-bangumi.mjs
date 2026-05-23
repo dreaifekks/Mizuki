@@ -8,7 +8,7 @@ loadEnv();
 const API_BASE = "https://api.bgm.tv";
 const CONFIG_PATH = path.join(
 	path.dirname(fileURLToPath(import.meta.url)),
-	"../src/config.ts",
+	"../src/config/siteConfig.ts",
 );
 const OUTPUT_FILE = path.join(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -30,15 +30,15 @@ async function getUserIdFromConfig() {
 				!userId
 			) {
 				console.warn(
-					"Warning: userId in src/config.ts appears to be a default value.",
+					"Warning: userId in src/config/siteConfig.ts appears to be a default value.",
 				);
 				return userId;
 			}
 			return userId;
 		}
-		throw new Error("Could not find bangumi.userId in config.ts");
+		throw new Error("Could not find bangumi.userId in config/siteConfig.ts");
 	} catch (error) {
-		console.error("✘ Failed to read Bangumi ID from config.ts");
+		console.error("✘ Failed to read Bangumi ID from config/siteConfig.ts");
 		throw error;
 	}
 }

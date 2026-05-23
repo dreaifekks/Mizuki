@@ -20,11 +20,6 @@ export const zh_TW: Translation = {
 	[Key.postList]: "文章列表",
 	[Key.tableOfContents]: "目錄",
 	[Key.tocEmpty]: "當前頁面沒有目錄",
-	[Key.postLanguage]: "文章語言",
-	[Key.postLanguageCurrent]: "目前選擇",
-	[Key.postLanguageNotSet]: "未設定",
-	[Key.postLanguageNoOptions]: "未偵測到語言選項",
-	[Key.postLanguageDefault]: "預設",
 
 	// 公告欄
 	[Key.announcement]: "公告",
@@ -86,14 +81,15 @@ export const zh_TW: Translation = {
 	[Key.animeEmptyBilibili]: "請檢查 Bilibili 設定或網路連線",
 	[Key.animeEmptyLocal]: "請在 src/data/anime.ts 檔案中新增番劇資訊",
 	[Key.animeConfigBilibili]:
-		"請在 src/config.ts 檔案中設定您的 Bilibili vmid",
+		"請在 src/config/siteConfig.ts 檔案中設定您的 Bilibili vmid",
 	[Key.animeConfigBangumi]:
-		"請在 src/config.ts 檔案中設定您的 Bangumi userId",
+		"請在 src/config/siteConfig.ts 檔案中設定您的 Bangumi userId",
 
 	// 短文頁面
 	[Key.diarySubtitle]: "隨時隨地，分享生活",
-	[Key.diaryCount]: "條短文",
-	[Key.diaryReply]: "回復",
+	[Key.diaryNoResults]: "沒有匹配的日記",
+	[Key.diaryCount]: "條日記",
+
 	[Key.diaryTips]: "只展示最近30條日記",
 	[Key.diaryMinutesAgo]: "分鐘前",
 	[Key.diaryHoursAgo]: "小時前",
@@ -137,6 +133,8 @@ export const zh_TW: Translation = {
 	[Key.albumsBackToList]: "返回相冊",
 	[Key.albumsPhotoCount]: "張照片",
 	[Key.albumsPhotosCount]: "張照片",
+	[Key.albumsFilterAll]: "全部",
+	[Key.albumsNoResults]: "沒有匹配的相冊",
 
 	// 專案展示頁面
 	[Key.projects]: "專案展示",
@@ -180,8 +178,7 @@ export const zh_TW: Translation = {
 	[Key.rssBenefit2]: "在一個地方管理多個網站的訂閱",
 	[Key.rssBenefit3]: "避免錯過重要更新和文章",
 	[Key.rssBenefit4]: "享受無廣告的純淨閱讀經驗",
-	[Key.rssHowToUse]:
-		"推薦使用 Feedly、Inoreader 或其他 RSS 閱讀器來訂閱本站。",
+	[Key.rssHowToUse]: "推薦使用 Feedly、Inoreader 或其他 RSS 閱讀器來訂閱本站。",
 	[Key.rssCopied]: "RSS 鏈接已複製到剪貼板！",
 	[Key.rssCopyFailed]: "複製失敗，請手動複製鏈接",
 
@@ -260,6 +257,8 @@ export const zh_TW: Translation = {
 	[Key.passwordProtected]: "密碼保護",
 	[Key.passwordProtectedTitle]: "此內容受密碼保護",
 	[Key.passwordProtectedDescription]: "請輸入密碼以查看受保護的內容",
+	[Key.postEncrypted]: "已加密",
+	[Key.postEncryptedMessage]: "該文章已加密",
 	[Key.passwordPlaceholder]: "請輸入密碼",
 	[Key.passwordUnlock]: "解鎖",
 	[Key.passwordUnlocking]: "解鎖中...",
@@ -274,6 +273,7 @@ export const zh_TW: Translation = {
 	[Key.syntaxHighlightFailed]: "語法高亮失敗:",
 	[Key.autoSyntaxHighlightFailed]: "自動語法高亮也失敗:",
 	[Key.decryptionError]: "解密過程中發生錯誤:",
+	[Key.passwordHint]: "提示",
 
 	//最後編輯時間卡片
 	[Key.lastModifiedPrefix]: "距離上次編輯: ",
@@ -328,10 +328,9 @@ export const zh_TW: Translation = {
 	[Key.copied]: "已複製",
 	[Key.copyLink]: "複製連結",
 	[Key.savePoster]: "儲存海報",
-	[Key.scanToRead]: "掃碼閱讀",
+	[Key.scanToRead]: "來源網站",
 	[Key.shareOnSocial]: "分享",
-	[Key.shareOnSocialDescription]:
-		"如果這篇文章對你有幫助，歡迎分享給更多人！",
+	[Key.shareOnSocialDescription]: "如果這篇文章對你有幫助，歡迎分享給更多人！",
 
 	// 個人資料統計
 	[Key.profileStatsLoading]: "統計載入中...",
@@ -346,4 +345,10 @@ export const zh_TW: Translation = {
 	// 布局切換按鈕
 	[Key.switchToGridMode]: "切換到網格模式",
 	[Key.switchToListMode]: "切換到列表模式",
+
+	// 相关文章与随机文章
+	[Key.relatedPosts]: "相關文章",
+	[Key.randomPosts]: "隨機文章",
+	[Key.smartRecommend]: "智能推薦",
+	[Key.randomRecommend]: "隨機推薦",
 };

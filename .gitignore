@@ -3,6 +3,8 @@ dist/
 
 # generated types
 .astro/
+demo
+plans
 
 # dependencies
 node_modules/
@@ -19,6 +21,7 @@ pnpm-debug.log*
 
 # content repository (independent mode)
 /content/
+.content-sync-backup/
 *.backup
 
 # Large zip files
@@ -36,6 +39,7 @@ yarn.lock
 # ide
 .idea
 *.iml
+.claude
 
 cache/
 fuwari/
@@ -48,3 +52,12 @@ src/data/eroge-bangumi-data.json
 
 # Bilibili generated data
 src/data/bilibili-data.json
+
+# Lighthouse CI
+.lighthouseci/
+
+# Live2D editor source files
+*.psd
+*.psd~
+*.cmo3
+*.vtube.json

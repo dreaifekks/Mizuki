@@ -51,7 +51,7 @@ function getDateClass(isCurrentPost: boolean): string {
 			{#each posts as post (post.id)}
 				{@const isCurrentPost = post.id === currentPostId}
 				<a
-					href="/posts/{post.id}/"
+					href={post.url}
 					class={getContainerClass(isCurrentPost)}
 				>
 					<span class={getTitleClass(isCurrentPost)}

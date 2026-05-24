@@ -32,9 +32,10 @@ interface Props {
 	monthNames: string[];
 	weekDays: string[];
 	yearSuffix: string;
+	apiUrl: string;
 }
 
-const { monthNames, weekDays, yearSuffix }: Props = $props();
+const { monthNames, weekDays, yearSuffix, apiUrl }: Props = $props();
 
 // State
 let allPostsData: CalendarPost[] = $state([]);
@@ -112,7 +113,7 @@ const displayedPosts = $derived(
 // Functions
 async function fetchCalendarData() {
 	try {
-		const res = await fetch("/api/calendar-data.json");
+		const res = await fetch(apiUrl);
 		const data = await res.json();
 		if (Array.isArray(data)) {
 			allPostsData = data;

@@ -5,7 +5,9 @@ import { initPostIdMap } from "@utils/permalink-utils";
 import { getCategoryUrl, getPostUrl } from "@utils/url-utils";
 import {
 	type PostVariantGroup,
+	filterPostVariantsByLanguage,
 	getCanonicalPostSlugFromId,
+	getPostLanguage,
 	getPostVariantLanguageKey,
 	selectPreferredPostVariant,
 } from "./post-variant-utils";
@@ -96,19 +98,26 @@ export async function getSortedPostGroups(
 		}
 	}
 
-	const groups: PostVariantGroup[] = Array.from(grouped.entries()).map(
-		([canonicalId, variants]) => {
-			const sortedVariants = sortVariantsInGroup(variants, preferredLang);
+	const groups: PostVariantGroup[] = Array.from(grouped.entries())
+		.map(([canonicalId, variants]) => {
+			const localizedVariants = filterPostVariantsByLanguage(
+				variants,
+				preferredLang,
+			);
+			if (localizedVariants.length === 0) {
+				return null;
+			}
+			const sortedVariants = sortVariantsInGroup(
+				localizedVariants,
+				preferredLang,
+			);
 			return {
 				canonicalId,
 				variants: sortedVariants,
-				defaultEntry: selectPreferredPostVariant(
-					sortedVariants,
-					preferredLang,
-				),
+				defaultEntry: selectPreferredPostVariant(sortedVariants, preferredLang),
 			};
-		},
-	);
+		})
+		.filter((group): group is PostVariantGroup => group !== null);
 
 	groups.sort((a, b) => sortPostsForDisplay(a.defaultEntry, b.defaultEntry));
 	return groups;
@@ -141,8 +150,10 @@ export interface PostForList {
 	data: CollectionEntry<"posts">["data"];
 	url?: string; // 预计算的文章 URL
 }
-export async function getSortedPostsList(): Promise<PostForList[]> {
-	const sortedFullPosts = await getRawSortedPosts();
+export async function getSortedPostsList(
+	preferredLang?: string | null,
+): Promise<PostForList[]> {
+	const sortedFullPosts = await getSortedPosts(preferredLang);
 
 	// 初始化文章 ID 映射（用于 permalink 功能）
 	initPostIdMap(sortedFullPosts);
@@ -161,10 +172,10 @@ export interface Tag {
 	count: number;
 }
 
-export async function getTagList(): Promise<Tag[]> {
-	const allBlogPosts = await getCollection<"posts">("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
-	});
+export async function getTagList(
+	preferredLang?: string | null,
+): Promise<Tag[]> {
+	const allBlogPosts = await getSortedPosts(preferredLang);
 
 	const countMap: Record<string, number> = {};
 	allBlogPosts.forEach((post: { data: { tags: string[] } }) => {
@@ -190,10 +201,10 @@ export interface Category {
 	url: string;
 }
 
-export async function getCategoryList(): Promise<Category[]> {
-	const allBlogPosts = await getCollection<"posts">("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
-	});
+export async function getCategoryList(
+	preferredLang?: string | null,
+): Promise<Category[]> {
+	const allBlogPosts = await getSortedPosts(preferredLang);
 	const count: Record<string, number> = {};
 	allBlogPosts.forEach((post: { data: { category: string | null } }) => {
 		if (!post.data.category) {
@@ -375,13 +386,16 @@ export async function getRelatedPosts(
 		useIDF: weights.tagIDF ?? true,
 	};
 
-	const allPosts = await getCollection<"posts">("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
-	});
+	const currentLanguage = getPostLanguage(currentPost);
+	const allPosts = await getSortedPosts(currentLanguage);
+	const currentCanonicalId = getCanonicalPostSlugFromId(currentPost);
 
 	// 排除自身和加密文章
 	const candidates = allPosts.filter(
-		(p) => p.id !== currentPost.id && !p.data.password,
+		(p) =>
+			p.id !== currentPost.id &&
+			getCanonicalPostSlugFromId(p) !== currentCanonicalId &&
+			!p.data.password,
 	);
 
 	if (candidates.length === 0) return [];
@@ -461,12 +475,12 @@ export async function getRelatedPosts(
 
 	for (const s of withTagMatch) {
 		if (result.length >= maxCount) break;
-		result.push({ id: s.post.id, data: s.post.data });
+		result.push({ id: s.post.id, data: s.post.data, url: getPostUrl(s.post) });
 	}
 
 	for (const s of withoutTagMatch) {
 		if (result.length >= maxCount) break;
-		result.push({ id: s.post.id, data: s.post.data });
+		result.push({ id: s.post.id, data: s.post.data, url: getPostUrl(s.post) });
 	}
 
 	return result;

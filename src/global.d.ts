@@ -85,6 +85,7 @@ declare global {
 		__mizukiRightSidebarResizeHandler?: () => void;
 		__mizukiRightSidebarSwupHooked?: boolean;
 		__mizukiRightSidebarManagerInitialized?: boolean;
+		__mizukiLanguageSwitcherHooked?: boolean;
 
 		// Panel manager
 		panelManager?: unknown;

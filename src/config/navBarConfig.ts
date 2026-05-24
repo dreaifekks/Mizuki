@@ -133,7 +133,7 @@ export const navBarConfig: NavBarConfig = {
     // 预设链接：归档
     LinkPreset.Archive,
 
-    LinkPreset.Timeline,
+    // LinkPreset.Timeline,
 
     // 自定义一级下拉菜单示例：外部链接集合
     // {

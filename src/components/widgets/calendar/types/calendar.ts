@@ -2,6 +2,7 @@ export interface CalendarPost {
 	id: string;
 	title: string;
 	date: string;
+	url: string;
 }
 
 export interface CalendarStats {

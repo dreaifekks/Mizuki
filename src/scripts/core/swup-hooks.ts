@@ -3,7 +3,7 @@
  * 处理页面过渡过程中的各种钩子事件
  */
 
-import { pathsEqual, url } from "../../utils/url-utils";
+import { isLocalizedHomePath } from "../../i18n/locale";
 import type { FancyboxHandler } from "../handlers/fancybox-handler";
 import type { ScrollHandler } from "../handlers/scroll-handler";
 import {
@@ -29,6 +29,14 @@ interface VisitObject {
 	to: {
 		url: string;
 	};
+}
+
+function getPathnameFromVisitUrl(url: string): string {
+	try {
+		return new URL(url, window.location.origin).pathname;
+	} catch {
+		return url.split(/[?#]/)[0] || "/";
+	}
 }
 
 /**
@@ -130,7 +138,9 @@ export class SwupHooksManager {
 			this.handlers.cleanupFancybox?.();
 
 			// 处理页面状态
-			const isHomePage = pathsEqual(visit.to.url, url("/"));
+			const isHomePage = isLocalizedHomePath(
+				getPathnameFromVisitUrl(visit.to.url),
+			);
 			this.handleBodyClass(isHomePage);
 			this.handleBannerTextVisibility(isHomePage);
 			this.handleNavbarState(isHomePage);

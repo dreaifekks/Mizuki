@@ -2,6 +2,7 @@
 import I18nKey from "../../../i18n/i18nKey";
 import { getCurrentLocaleLang } from "../../../i18n/locale";
 import { i18n } from "../../../i18n/translation";
+import { localizedUrl } from "../../../utils/url-utils";
 import WidgetLayout from "../common/WidgetLayout.astro";
 import CalendarWidget from "./Calendar.svelte";
 
@@ -39,6 +40,7 @@ const weekDays = [
 
 const isChinese = getCurrentLocaleLang().startsWith("zh");
 const yearSuffix = isChinese ? "年" : " ";
+const calendarDataUrl = localizedUrl("/api/calendar-data.json");
 ---
 
 <WidgetLayout
@@ -46,5 +48,11 @@ const yearSuffix = isChinese ? "年" : " ";
 	class={`hidden md:block ${className}`}
 	style={style}
 >
-	<CalendarWidget client:visible {monthNames} {weekDays} {yearSuffix} />
+	<CalendarWidget
+		client:visible
+		{monthNames}
+		{weekDays}
+		{yearSuffix}
+		apiUrl={calendarDataUrl}
+	/>
 </WidgetLayout>

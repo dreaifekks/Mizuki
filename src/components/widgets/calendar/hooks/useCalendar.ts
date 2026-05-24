@@ -76,8 +76,11 @@ export function formatDateKey(
  */
 export function getPostsForDate(
 	dateKey: string,
-	postDateMap: Record<string, { id: string; title: string; date: string }[]>,
-): { id: string; title: string; date: string }[] {
+	postDateMap: Record<
+		string,
+		{ id: string; title: string; date: string; url: string }[]
+	>,
+): { id: string; title: string; date: string; url: string }[] {
 	return postDateMap[dateKey] || [];
 }
 
@@ -86,8 +89,11 @@ export function getPostsForDate(
  */
 export function getPostsForMonth(
 	monthKey: string,
-	postsByMonth: Record<string, { id: string; title: string; date: string }[]>,
-): { id: string; title: string; date: string }[] {
+	postsByMonth: Record<
+		string,
+		{ id: string; title: string; date: string; url: string }[]
+	>,
+): { id: string; title: string; date: string; url: string }[] {
 	return postsByMonth[monthKey] || [];
 }
 
@@ -95,10 +101,16 @@ export function getPostsForMonth(
  * Process posts data and build indexes
  */
 export function processPostsData(
-	posts: { date: string; id: string; title: string }[],
+	posts: { date: string; id: string; title: string; url: string }[],
 ): {
-	postDateMap: Record<string, { id: string; title: string; date: string }[]>;
-	postsByMonth: Record<string, { id: string; title: string; date: string }[]>;
+	postDateMap: Record<
+		string,
+		{ id: string; title: string; date: string; url: string }[]
+	>;
+	postsByMonth: Record<
+		string,
+		{ id: string; title: string; date: string; url: string }[]
+	>;
 	stats: {
 		hasPostInYear: Record<string, boolean>;
 		hasPostInMonth: Record<string, boolean>;
@@ -108,11 +120,11 @@ export function processPostsData(
 } {
 	const postDateMap: Record<
 		string,
-		{ id: string; title: string; date: string }[]
+		{ id: string; title: string; date: string; url: string }[]
 	> = {};
 	const postsByMonth: Record<
 		string,
-		{ id: string; title: string; date: string }[]
+		{ id: string; title: string; date: string; url: string }[]
 	> = {};
 	const stats = {
 		hasPostInYear: {} as Record<string, boolean>,
@@ -157,7 +169,7 @@ export function processPostsData(
  */
 export function getCurrentPostId(
 	path: string,
-	allPostsData: { id: string; date: string; title: string }[],
+	allPostsData: { id: string; date: string; title: string; url: string }[],
 ): string | null {
 	if (!allPostsData || allPostsData.length === 0) {
 		return null;
@@ -166,8 +178,14 @@ export function getCurrentPostId(
 	const normalizedPath = decodedPath.endsWith("/")
 		? decodedPath.slice(0, -1)
 		: decodedPath;
-	const matchedPost = allPostsData.find((post) =>
-		normalizedPath.endsWith(`/${post.id}`),
-	);
+	const matchedPost = allPostsData.find((post) => {
+		const normalizedPostPath = post.url.endsWith("/")
+			? post.url.slice(0, -1)
+			: post.url;
+		return (
+			normalizedPath === normalizedPostPath ||
+			normalizedPath.endsWith(`/${post.id}`)
+		);
+	});
 	return matchedPost ? matchedPost.id : null;
 }

@@ -8,6 +8,7 @@ import { LinkPresets } from "../../../constants/link-presets";
 import {
 	SUPPORTED_LOCALES,
 	getCurrentLocalePath,
+	getDefaultLocaleInfo,
 	getLocaleSwitchPath,
 	isLocalizedHomePath,
 } from "../../../i18n/locale";
@@ -128,13 +129,14 @@ const currentLocalePath = getCurrentLocalePath();
 const currentLocale =
 	SUPPORTED_LOCALES.find((locale) => locale.path === currentLocalePath) ||
 	SUPPORTED_LOCALES[0];
+const defaultLocalePath = getDefaultLocaleInfo().path;
 const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
 	...locale,
 	href: getLocaleSwitchPath(Astro.url.pathname + Astro.url.search, locale.path),
 	active: locale.path === currentLocalePath,
 }));
 ---
-<div id="navbar" class="z-50 onload-animation group" data-transparent-mode={navbarTransparentMode} data-is-home={isHomePage}>
+<div id="navbar" class="z-50 onload-animation group" data-transparent-mode={navbarTransparentMode} data-is-home={isHomePage} data-default-locale={defaultLocalePath}>
     <div class="absolute h-8 left-0 right-0 -top-8 bg-[var(--card-bg)] transition"></div> <!-- used for onload animation -->
     <div class:list={[className, "!overflow-visible max-w-[var(--page-width)] h-[4.5rem] mx-auto flex items-center justify-between px-4"]}>
         <a href={localizedUrl('/')} class="btn-plain scale-animation rounded-lg h-[2.5rem] md:h-[3.25rem] md:[.enable-banner_&]:h-[2.5rem] md:[.enable-banner_&]:group-[.scrolled]:h-[3.25rem] px-5 font-bold active:scale-95 shrink-0 transition-all duration-300">
@@ -197,7 +199,7 @@ const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
                     data-language-trigger
                 >
                     <Icon name="material-symbols:translate" class="text-[1.2rem]"></Icon>
-                    <span class="text-xs">{currentLocale.shortLabel}</span>
+                    <span class="text-xs" data-current-language-label>{currentLocale.shortLabel}</span>
                     <Icon name="material-symbols:keyboard-arrow-down-rounded" class="text-[1.1rem] transition-transform duration-200 language-arrow"></Icon>
                 </button>
                 <div class="language-menu">
@@ -210,11 +212,20 @@ const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
                                     { "language-menu-item-active": locale.active },
                                 ]}
                                 aria-current={locale.active ? "page" : null}
+                                data-no-swup
+                                data-language-option
+                                data-locale-path={locale.path}
+                                data-locale-short-label={locale.shortLabel}
                             >
                                 <span>{locale.label}</span>
-                                {locale.active && (
-                                    <Icon name="material-symbols:check-rounded" class="text-[1rem] text-[var(--primary)]"></Icon>
-                                )}
+                                <Icon
+                                    name="material-symbols:check-rounded"
+                                    class:list={[
+                                        "text-[1rem] text-[var(--primary)]",
+                                        { hidden: !locale.active },
+                                    ]}
+                                    data-language-check
+                                ></Icon>
                             </a>
                         ))}
                     </div>
@@ -242,8 +253,114 @@ const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
 <script>
 	const searchContainer = document.getElementById("search-container");
 	const navbarLinksContainer = document.getElementById("navbar-links-container");
+	const navbar = document.getElementById("navbar");
 	const languageSwitcher = document.querySelector("[data-language-switcher]");
 	const languageTrigger = document.querySelector("[data-language-trigger]");
+	const languageOptions = Array.from(
+		document.querySelectorAll("[data-language-option]"),
+	);
+	const defaultLocalePath = navbar?.dataset.defaultLocale || "cn";
+	const localePaths = Array.from(
+		new Set(
+			languageOptions
+				.map((option) =>
+					option instanceof HTMLElement
+						? option.dataset.localePath
+						: "",
+				)
+				.filter(Boolean),
+		),
+	);
+
+	function stripLocaleFromPathname(pathname: string) {
+		const normalized = pathname.startsWith("/") ? pathname : `/${pathname}`;
+		const segments = normalized.split("/").filter(Boolean);
+		const firstSegment = segments[0];
+
+		if (localePaths.includes(firstSegment)) {
+			let pathWithoutLocale = `/${segments.slice(1).join("/")}`;
+			if (pathWithoutLocale === "/" || pathWithoutLocale === "") {
+				pathWithoutLocale = "/";
+			} else if (
+				normalized.endsWith("/") &&
+				!pathWithoutLocale.endsWith("/")
+			) {
+				pathWithoutLocale += "/";
+			}
+
+			return {
+				localePath: firstSegment,
+				pathWithoutLocale,
+			};
+		}
+
+		return {
+			localePath: defaultLocalePath,
+			pathWithoutLocale: normalized || "/",
+		};
+	}
+
+	function getLanguageSwitchHref(targetLocalePath: string) {
+		const route = stripLocaleFromPathname(window.location.pathname);
+		const targetPath = `/${targetLocalePath}${
+			route.pathWithoutLocale === "/" ? "/" : route.pathWithoutLocale
+		}`;
+		return `${targetPath}${window.location.search}${window.location.hash}`;
+	}
+
+	function syncLanguageSwitcher() {
+		if (localePaths.length === 0) {
+			return;
+		}
+
+		const currentLocalePath = stripLocaleFromPathname(
+			window.location.pathname,
+		).localePath;
+		let currentShortLabel = currentLocalePath.toUpperCase();
+
+		for (const option of languageOptions) {
+			if (!(option instanceof HTMLAnchorElement)) {
+				continue;
+			}
+
+			const localePath = option.dataset.localePath;
+			if (!localePath) {
+				continue;
+			}
+
+			const isActive = localePath === currentLocalePath;
+			option.href = getLanguageSwitchHref(localePath);
+			option.classList.toggle("language-menu-item-active", isActive);
+			option.classList.toggle("text-[var(--primary)]", isActive);
+
+			if (isActive) {
+				option.setAttribute("aria-current", "page");
+				currentShortLabel =
+					option.dataset.localeShortLabel || currentShortLabel;
+			} else {
+				option.removeAttribute("aria-current");
+			}
+
+			option
+				.querySelector("[data-language-check]")
+				?.classList.toggle("hidden", !isActive);
+		}
+
+		document
+			.querySelectorAll("[data-current-language-label]")
+			.forEach((label) => {
+				label.textContent = currentShortLabel;
+			});
+	}
+
+	function setupLanguageSwitcherSync() {
+		syncLanguageSwitcher();
+		if (window.swup?.hooks && !window.__mizukiLanguageSwitcherHooked) {
+			window.__mizukiLanguageSwitcherHooked = true;
+			window.swup.hooks.on("page:view", syncLanguageSwitcher);
+			window.swup.hooks.on("content:replace", syncLanguageSwitcher);
+		}
+	}
 
 	if (languageSwitcher && languageTrigger) {
 		languageTrigger.addEventListener("click", () => {
@@ -260,6 +377,10 @@ const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
 			}
 		});
 	}
+
+	setupLanguageSwitcherSync();
+	document.addEventListener("swup:enable", setupLanguageSwitcherSync);
+	window.addEventListener("popstate", syncLanguageSwitcher);
 
 	if (searchContainer && navbarLinksContainer) {
 		// 鼠标移入/触摸开始时隐藏导航链接
@@ -285,7 +406,6 @@ const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
 		searchContainer.addEventListener("touchend", showLinks);
 
 		// 监听 navbar 的 class 变化，当搜索框折叠时确保链接显示
-		const navbar = document.getElementById("navbar");
 		if (navbar) {
 			const observer = new MutationObserver((mutations) => {
 				mutations.forEach((mutation) => {

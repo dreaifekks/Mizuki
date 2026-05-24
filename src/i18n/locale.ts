@@ -86,8 +86,10 @@ export function getLocaleInfoByLang(lang?: string | null) {
 
 export function getDefaultLocaleInfo() {
 	if (siteConfig.i18n?.defaultLocale) {
-		return getLocaleInfoByPath(siteConfig.i18n.defaultLocale) ||
-			getLocaleInfoByLang(siteConfig.lang);
+		return (
+			getLocaleInfoByPath(siteConfig.i18n.defaultLocale) ||
+			getLocaleInfoByLang(siteConfig.lang)
+		);
 	}
 	return getLocaleInfoByLang(siteConfig.lang);
 }
@@ -113,7 +115,15 @@ export function stripLocalePrefix(pathname: string) {
 	const first = segments[0];
 
 	if (isSupportedLocalePath(first)) {
-		const withoutLocale = `/${segments.slice(1).join("/")}`;
+		let withoutLocale = `/${segments.slice(1).join("/")}`;
+		if (
+			withoutLocale !== "/" &&
+			withoutLocale !== "" &&
+			normalized.endsWith("/") &&
+			!withoutLocale.endsWith("/")
+		) {
+			withoutLocale += "/";
+		}
 		return {
 			localePath: first,
 			hasLocalePrefix: true,
@@ -133,7 +143,8 @@ export function getRouteLocaleContextFromPath(
 	pathname: string,
 ): RouteLocaleContext {
 	const route = stripLocalePrefix(pathname);
-	const localeInfo = getLocaleInfoByPath(route.localePath) || getDefaultLocaleInfo();
+	const localeInfo =
+		getLocaleInfoByPath(route.localePath) || getDefaultLocaleInfo();
 	return {
 		localePath: localeInfo.path,
 		lang: localeInfo.lang,
@@ -146,7 +157,8 @@ export function setCurrentLocaleContext(
 	localePathOrLang?: string | null,
 	hasLocalePrefix?: boolean,
 ): RouteLocaleContext {
-	const localeInfo = getLocaleInfoByPath(localePathOrLang) ||
+	const localeInfo =
+		getLocaleInfoByPath(localePathOrLang) ||
 		getLocaleInfoByLang(localePathOrLang);
 	const explicitLocale = !!localePathOrLang;
 	currentRouteLocaleContext = {

@@ -14,6 +14,8 @@ import { localizedUrl } from "../../../utils/url-utils";
 import type { NavMenuPanelProps, ProcessedNavBarLink } from "./types";
 
 const navTitleMap: Record<string, string> = {
+	Home: I18nKey.home,
+	Archive: I18nKey.archive,
 	Links: I18nKey.navLinks,
 	My: I18nKey.navMy,
 	About: I18nKey.navAbout,
@@ -171,6 +173,10 @@ const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
 						{ "text-[var(--primary)]": locale.active },
 					]}
 					aria-current={locale.active ? "page" : null}
+					data-no-swup
+					data-language-option
+					data-locale-path={locale.path}
+					data-locale-short-label={locale.shortLabel}
 				>
 					<div class="flex items-center transition font-bold">
 						<Icon
@@ -179,12 +185,14 @@ const languageOptions = SUPPORTED_LOCALES.map((locale) => ({
 						/>
 						{locale.label}
 					</div>
-					{locale.active && (
-						<Icon
-							name="material-symbols:check-rounded"
-							class="transition text-[1.25rem] text-[var(--primary)]"
-						/>
-					)}
+					<Icon
+						name="material-symbols:check-rounded"
+						class:list={[
+							"transition text-[1.25rem] text-[var(--primary)]",
+							{ hidden: !locale.active },
+						]}
+						data-language-check
+					/>
 				</a>
 			))}
 		</div>

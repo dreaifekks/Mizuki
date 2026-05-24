@@ -1,6 +1,7 @@
 import type { CollectionEntry } from "astro:content";
 
 import {
+	getDefaultLocaleInfo,
 	getCurrentLocaleLang,
 	normalizeLanguageCode,
 	type SupportedLocaleLang,
@@ -57,9 +58,7 @@ function getRelativeContentPathFromFilePath(filePath: string): string {
 		return contentMatch[1];
 	}
 
-	const postsOrSpecMatch = normalized.match(
-		/(?:^|\/)(?:posts|spec)\/(.+)$/i,
-	);
+	const postsOrSpecMatch = normalized.match(/(?:^|\/)(?:posts|spec)\/(.+)$/i);
 	if (postsOrSpecMatch?.[1]) {
 		return postsOrSpecMatch[1];
 	}
@@ -88,7 +87,9 @@ export function getPostVariantInfo(
 	const filePath = typeof post === "string" ? "" : (post.filePath ?? "");
 	const frontmatterLang =
 		typeof post === "string" ? "" : (post.data?.lang ?? "");
-	const pathSource = filePath ? getRelativeContentPathFromFilePath(filePath) : id;
+	const pathSource = filePath
+		? getRelativeContentPathFromFilePath(filePath)
+		: id;
 	const idWithoutExt = stripMarkdownExtension(pathSource);
 	const { dir, base } = splitPathAndBase(idWithoutExt);
 
@@ -145,9 +146,7 @@ export function getPostVariantLanguageKey(
 	return info.variantLang || "default";
 }
 
-export function getLanguageCandidateChain(
-	preferred?: string | null,
-): string[] {
+export function getLanguageCandidateChain(preferred?: string | null): string[] {
 	const normalizedPreferred = normalizeLanguageCode(
 		preferred || getCurrentLocaleLang(),
 	);
@@ -205,6 +204,43 @@ export function selectPreferredPostVariant<
 		return defaultEntry;
 	}
 	return entries[0];
+}
+
+function languagesMatch(candidate: string, target: string): boolean {
+	const normalizedCandidate = normalizeLanguageCode(candidate);
+	const normalizedTarget = normalizeLanguageCode(target);
+
+	if (!normalizedCandidate || !normalizedTarget) {
+		return false;
+	}
+
+	if (normalizedCandidate === normalizedTarget) {
+		return true;
+	}
+
+	return normalizedCandidate.split("_")[0] === normalizedTarget.split("_")[0];
+}
+
+export function postVariantMatchesLanguage(
+	post: PostVariantLike,
+	preferredLang?: string | null,
+	defaultLang = getDefaultLocaleInfo().lang,
+): boolean {
+	const info = getPostVariantInfo(post);
+	const targetLang = preferredLang || getCurrentLocaleLang();
+	const variantLang = info.variantLang || defaultLang;
+
+	return languagesMatch(variantLang, targetLang);
+}
+
+export function filterPostVariantsByLanguage<T extends PostVariantLike>(
+	entries: T[],
+	preferredLang?: string | null,
+	defaultLang = getDefaultLocaleInfo().lang,
+): T[] {
+	return entries.filter((entry) =>
+		postVariantMatchesLanguage(entry, preferredLang, defaultLang),
+	);
 }
 
 export interface PostVariantGroup {
